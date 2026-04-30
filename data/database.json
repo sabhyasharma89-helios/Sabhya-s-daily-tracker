@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "lastSyncTime": null,
+  "lastEmailDate": null,
+  "clients": {},
+  "employees": [],
+  "settings": {
+    "syncInterval": 10
+  }
+}
