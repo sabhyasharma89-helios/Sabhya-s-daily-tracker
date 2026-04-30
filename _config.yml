@@ -1,0 +1,3 @@
+# GitHub Pages config — serves the repo root as-is
+include:
+  - data

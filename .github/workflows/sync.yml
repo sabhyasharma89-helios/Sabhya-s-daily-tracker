@@ -1,0 +1,94 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: This workflow is the ADVANCED setup option (Node.js + Gmail OAuth).
+#
+# The RECOMMENDED easy setup is Google Apps Script — see scripts/gmail-sync.gs
+# and the README for simple step-by-step instructions.
+#
+# This workflow will safely skip if the required secrets are not configured.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Sync Emails to Tasks (Advanced)
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      reset_first_run:
+        description: 'Reset to first-run mode (re-read last 30 days)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Check if secrets are configured
+        id: check
+        run: |
+          if [ -z "${{ secrets.GMAIL_CLIENT_ID }}" ] || [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "configured=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Secrets not configured — skipping sync. See README for setup instructions."
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository
+        if: steps.check.outputs.configured == 'true'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        if: steps.check.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.check.outputs.configured == 'true'
+        run: npm ci --production
+
+      - name: Reset first-run flag (optional)
+        if: steps.check.outputs.configured == 'true' && github.event.inputs.reset_first_run == 'true'
+        run: |
+          node -e "
+            const fs = require('fs');
+            const f = 'data/tasks.json';
+            if (fs.existsSync(f)) {
+              const db = JSON.parse(fs.readFileSync(f));
+              db.isFirstRun = true;
+              db.lastSync = null;
+              fs.writeFileSync(f, JSON.stringify(db, null, 2));
+              console.log('Reset first-run flag');
+            }
+          "
+
+      - name: Sync emails
+        if: steps.check.outputs.configured == 'true'
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/sync-emails.js
+
+      - name: Commit updated tasks
+        if: steps.check.outputs.configured == 'true'
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/tasks.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync tasks from email [skip ci]"
+            git push
+          fi
