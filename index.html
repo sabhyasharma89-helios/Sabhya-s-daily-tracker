@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Sabhya's Task Tracker</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════
+       PATTERN LOCK SCREEN
+  ══════════════════════════════════════════════ -->
+  <div id="auth-overlay" class="auth-overlay">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="logo-mark">ST</div>
+        <h1>Sabhya's Task Tracker</h1>
+      </div>
+      <p id="auth-message" class="auth-message">Authenticating…</p>
+      <div class="canvas-wrapper">
+        <canvas id="pattern-canvas" width="300" height="300"></canvas>
+      </div>
+      <p id="auth-hint" class="auth-hint">&nbsp;</p>
+      <div class="auth-actions">
+        <button id="auth-confirm-btn" class="auth-confirm-btn" style="display:none">Confirm Pattern</button>
+        <button id="auth-reset-btn" class="auth-link-btn" style="display:none">Reset Pattern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MAIN APP
+  ══════════════════════════════════════════════ -->
+  <div id="app" class="app" style="display:none">
+
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <div class="logo-small">ST</div>
+        <h1 class="app-title">Task Tracker</h1>
+      </div>
+      <div class="header-right">
+        <div id="sync-status" class="sync-status" title="Last sync time">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-text" class="sync-text">Syncing…</span>
+        </div>
+        <button class="icon-btn" id="refresh-btn" title="Refresh now">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+        </button>
+        <button class="icon-btn" id="settings-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- STATS BANNER -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card stat-total">
+        <div class="stat-val" id="stat-total">0</div>
+        <div class="stat-lbl">Total</div>
+      </div>
+      <div class="stat-card stat-pending">
+        <div class="stat-val" id="stat-pending">0</div>
+        <div class="stat-lbl">Pending</div>
+      </div>
+      <div class="stat-card stat-done">
+        <div class="stat-val" id="stat-done">0</div>
+        <div class="stat-lbl">Done</div>
+      </div>
+      <div class="stat-card stat-urgent">
+        <div class="stat-val" id="stat-urgent">0</div>
+        <div class="stat-lbl">Urgent</div>
+      </div>
+      <div class="stat-card stat-medium">
+        <div class="stat-val" id="stat-medium">0</div>
+        <div class="stat-lbl">Medium</div>
+      </div>
+      <div class="stat-card stat-low">
+        <div class="stat-val" id="stat-low">0</div>
+        <div class="stat-lbl">Low</div>
+      </div>
+    </div>
+
+    <!-- SEARCH & FILTER -->
+    <div class="search-area">
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="search-input" placeholder="Search tasks or clients…" autocomplete="off" />
+        <button class="clear-search" id="clear-search" style="display:none">×</button>
+      </div>
+      <div class="filter-chips">
+        <select id="filter-status" class="filter-select">
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select id="filter-priority" class="filter-select">
+          <option value="all">Priority</option>
+          <option value="urgent">Urgent</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="filter-assignee" class="filter-select">
+          <option value="all">Assignee</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ACTIVE TASK LIST -->
+    <div class="main-list" id="main-list">
+      <div class="empty-state" id="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>
+        <p>No tasks yet. Tasks will appear automatically once email sync runs, or add one manually.</p>
+        <button class="btn-primary" id="empty-add-btn">+ Add Task</button>
+      </div>
+    </div>
+
+    <!-- COMPLETED SECTION (collapsed by default) -->
+    <div class="completed-section" id="completed-section" style="display:none">
+      <button class="completed-toggle" id="completed-toggle">
+        <svg class="toggle-arrow collapsed" id="completed-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span>Completed Tasks</span>
+        <span class="completed-badge" id="completed-badge">0</span>
+      </button>
+      <div class="completed-list" id="completed-list" style="display:none"></div>
+    </div>
+
+  </div><!-- /app -->
+
+  <!-- FAB -->
+  <button class="fab" id="fab-add" title="Add new task">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+  </button>
+
+  <!-- ══════════════════════════════════════════════
+       MODALS
+  ══════════════════════════════════════════════ -->
+
+  <!-- Add / Edit Task Modal -->
+  <div class="modal-backdrop" id="task-modal-backdrop" style="display:none">
+    <div class="modal" id="task-modal">
+      <div class="modal-head">
+        <h2 id="task-modal-title">Add Task</h2>
+        <button class="modal-x" data-close="task-modal-backdrop">×</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="task-edit-id" />
+        <div class="form-row">
+          <div class="form-group fg-grow">
+            <label>Client <span class="req">*</span></label>
+            <input type="text" id="task-client" placeholder="Client / Company name" list="client-datalist" autocomplete="off" />
+            <datalist id="client-datalist"></datalist>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Task Title <span class="req">*</span></label>
+          <input type="text" id="task-title-inp" placeholder="Brief, actionable title" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="task-desc" rows="3" placeholder="Additional context…"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="task-priority-sel">
+              <option value="urgent">🔴 Urgent</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+          <div class="form-group fg-grow">
+            <label>Assign To</label>
+            <input type="text" id="task-assignee-inp" placeholder="Employee name" list="employee-datalist" autocomplete="off" />
+            <datalist id="employee-datalist"></datalist>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" data-close="task-modal-backdrop">Cancel</button>
+        <button class="btn-primary" id="task-save-btn">Save Task</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Detail Modal -->
+  <div class="modal-backdrop" id="detail-modal-backdrop" style="display:none">
+    <div class="modal modal-lg" id="detail-modal">
+      <div class="modal-head">
+        <div class="detail-head-left">
+          <span class="priority-pill" id="detail-priority-pill"></span>
+          <h2 id="detail-title-el"></h2>
+        </div>
+        <button class="modal-x" data-close="detail-modal-backdrop">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-meta" id="detail-meta"></div>
+
+        <div class="detail-block">
+          <div class="detail-block-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+            Summary
+          </div>
+          <div id="detail-summary" class="detail-text"></div>
+        </div>
+
+        <div class="detail-block">
+          <div class="detail-block-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+            Actionables
+          </div>
+          <ul id="detail-actionables" class="actionable-list"></ul>
+        </div>
+
+        <div class="detail-block" id="detail-next-block">
+          <div class="detail-block-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            Next Steps Owner
+          </div>
+          <div id="detail-next-steps" class="detail-text"></div>
+        </div>
+
+        <div class="detail-block">
+          <div class="detail-block-head">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            Email Thread
+          </div>
+          <div id="detail-thread" class="email-thread"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="detail-edit-btn">Edit</button>
+        <button class="btn-ghost" id="detail-toggle-complete-btn"></button>
+        <button class="btn-danger" id="detail-delete-btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="settings-modal-backdrop" style="display:none">
+    <div class="modal modal-lg" id="settings-modal">
+      <div class="modal-head">
+        <h2>Settings</h2>
+        <button class="modal-x" data-close="settings-modal-backdrop">×</button>
+      </div>
+      <div class="modal-body settings-body">
+
+        <section class="settings-section">
+          <h3>GitHub Configuration</h3>
+          <p class="settings-hint">Required to load and save your task database. The PAT is stored only in your browser.</p>
+          <div class="form-group">
+            <label>Repository (owner/repo)</label>
+            <input type="text" id="cfg-repo" placeholder="sabhyasharma89-helios/sabhya-s-daily-tracker" />
+          </div>
+          <div class="form-group">
+            <label>Personal Access Token</label>
+            <div class="pat-row">
+              <input type="password" id="cfg-pat" placeholder="ghp_…" autocomplete="off" />
+              <button class="btn-ghost btn-sm" id="toggle-pat-vis">Show</button>
+            </div>
+            <small>Needs <code>repo</code> scope. Stored locally in your browser only.</small>
+          </div>
+          <button class="btn-secondary btn-sm" id="test-connection-btn">Test Connection</button>
+          <span id="connection-status" class="connection-status"></span>
+        </section>
+
+        <section class="settings-section">
+          <h3>Sync Status</h3>
+          <div class="sync-info-grid">
+            <span class="sync-info-label">Last sync:</span>
+            <span id="cfg-last-sync">Never</span>
+            <span class="sync-info-label">Last email processed:</span>
+            <span id="cfg-last-email">Never</span>
+          </div>
+          <button class="btn-primary btn-sm" id="cfg-force-sync-btn">Trigger Sync Now</button>
+        </section>
+
+        <section class="settings-section">
+          <h3>Employees</h3>
+          <div id="employee-chips" class="employee-chips"></div>
+          <div class="add-employee-row">
+            <input type="text" id="new-employee-inp" placeholder="Full name" />
+            <button class="btn-primary btn-sm" id="add-employee-btn">Add</button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Security</h3>
+          <button class="btn-secondary btn-sm" id="change-pattern-btn">Change Lock Pattern</button>
+        </section>
+
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" data-close="settings-modal-backdrop">Cancel</button>
+        <button class="btn-primary" id="settings-save-btn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- Scripts (load order matters) -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
