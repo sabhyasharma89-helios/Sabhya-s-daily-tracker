@@ -1,0 +1,71 @@
+name: Sync Emails to Tasks
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      reset_first_run:
+        description: 'Reset to first-run mode (re-read last 30 days)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Reset first-run flag (optional)
+        if: ${{ github.event.inputs.reset_first_run == 'true' }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const f = 'data/tasks.json';
+            if (fs.existsSync(f)) {
+              const db = JSON.parse(fs.readFileSync(f));
+              db.isFirstRun = true;
+              db.lastSync = null;
+              fs.writeFileSync(f, JSON.stringify(db, null, 2));
+              console.log('Reset first-run flag');
+            }
+          "
+
+      - name: Sync emails
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/sync-emails.js
+
+      - name: Commit updated tasks
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/tasks.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync tasks from email [skip ci]"
+            git push
+          fi

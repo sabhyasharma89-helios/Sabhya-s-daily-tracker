@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sabhya's Task Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SCREEN 1 · Pattern Lock / Auth
+════════════════════════════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="screen">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon">ST</div>
+      <h1>Sabhya's Task Tracker</h1>
+    </div>
+    <p id="auth-subtitle">Draw your pattern to unlock</p>
+    <div class="pattern-wrap">
+      <canvas id="pattern-canvas"></canvas>
+    </div>
+    <p id="auth-message" class="auth-message"></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SCREEN 2 · Dashboard
+════════════════════════════════════════════════════════════════════════════ -->
+<div id="dashboard-screen" class="screen">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-small">ST</div>
+      <div class="header-text">
+        <span class="app-name">Task Tracker</span>
+        <span class="sync-time" id="sync-time">Loading…</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="refresh-btn" title="Refresh data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 4v6h6"/><path d="M23 20v-6h-6"/>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="settings-btn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="lock-btn" title="Lock screen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-container">
+    <div class="stat-card" id="stat-total" title="Click to clear filters">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card" id="stat-urgent" title="Click to filter urgent">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Urgent</span>
+    </div>
+    <div class="stat-card" id="stat-medium" title="Click to filter medium">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Medium</span>
+    </div>
+    <div class="stat-card" id="stat-low" title="Click to filter low">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Low</span>
+    </div>
+    <div class="stat-card" id="stat-completed" title="Click to show completed">
+      <span class="stat-value">0</span>
+      <span class="stat-label">Done</span>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-container">
+    <div class="search-wrapper">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="search" id="search-input" placeholder="Search tasks, clients, employees…" class="search-input" autocomplete="off">
+    </div>
+    <div class="filters-row">
+      <select id="filter-status" class="filter-select">
+        <option value="all">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select id="filter-priority" class="filter-select">
+        <option value="all">All Priority</option>
+        <option value="urgent">Urgent</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select id="filter-employee" class="filter-select">
+        <option value="all">All Employees</option>
+      </select>
+      <select id="filter-client" class="filter-select">
+        <option value="all">All Clients</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Client Task Sections -->
+  <div class="main-content" id="main-content">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">📭</div>
+      <h3>No Tasks Yet</h3>
+      <p>Once GitHub Actions is configured, tasks will appear here automatically every 10 minutes. You can also add tasks manually using the + button.</p>
+    </div>
+  </div>
+
+  <!-- Completed Tasks (collapsed by default) -->
+  <div class="completed-section" id="completed-section" style="display:none">
+    <button class="completed-toggle" id="completed-toggle" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      <span>Completed Tasks</span>
+      <span class="count-badge" id="completed-count">0</span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="completed-tasks" id="completed-tasks"></div>
+  </div>
+
+  <!-- Add Task FAB -->
+  <button class="fab" id="add-task-btn" type="button" title="Add new task">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
+
+</div><!-- /dashboard-screen -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL · Task Detail
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="task-modal" role="dialog" aria-modal="true" aria-labelledby="modal-task-subject" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-task-subject">Task Details</h3>
+      <button class="modal-close" id="close-task-modal" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body" id="modal-task-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL · Add / Edit Task
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="edit-modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="edit-modal-title">Add New Task</h3>
+      <button class="modal-close" id="close-edit-modal" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="task-form" novalidate>
+        <input type="hidden" id="edit-task-id">
+
+        <div class="form-group">
+          <label for="edit-client">Client Name <span style="color:var(--urgent)">*</span></label>
+          <input type="text" id="edit-client" class="form-input" placeholder="e.g. Acme Corp" required autocomplete="off" list="clients-datalist">
+          <datalist id="clients-datalist"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-subject">Task Title <span style="color:var(--urgent)">*</span></label>
+          <input type="text" id="edit-subject" class="form-input" placeholder="Brief task description" required autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label for="edit-description">Full Description</label>
+          <textarea id="edit-description" class="form-input" rows="3" placeholder="What needs to be done…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-priority">Priority</label>
+          <select id="edit-priority" class="form-input">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-assignee">Assign To</label>
+          <input type="text" id="edit-assignee" class="form-input" placeholder="Employee name…" autocomplete="off" list="employees-datalist">
+          <datalist id="employees-datalist"></datalist>
+        </div>
+
+        <div class="form-group">
+          <label for="edit-notes">Notes</label>
+          <textarea id="edit-notes" class="form-input" rows="2" placeholder="Any additional notes…"></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="cancel-edit-btn">Cancel</button>
+          <button type="submit" class="btn-primary">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MODAL · Settings
+════════════════════════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="settings-modal" role="dialog" aria-modal="true" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Settings</h3>
+      <button class="modal-close" id="close-settings-modal" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <h4>GitHub Integration (Optional)</h4>
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+          Enter your GitHub PAT to save task changes across devices. Without it, changes (priority edits, manual tasks) are stored in this browser only.
+        </p>
+        <div class="form-group">
+          <label>Personal Access Token (PAT)</label>
+          <input type="password" id="settings-gh-pat" class="form-input" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+          <small>Needs <code>repo</code> scope — <a href="https://github.com/settings/tokens/new?scopes=repo&description=sabhya-task-tracker" target="_blank" rel="noopener">create one here</a></small>
+        </div>
+        <div class="form-group">
+          <label>Repository Owner (GitHub username)</label>
+          <input type="text" id="settings-gh-owner" class="form-input" placeholder="your-github-username" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Repository Name</label>
+          <input type="text" id="settings-gh-repo" class="form-input" placeholder="sabhya-s-daily-tracker" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="settings-gh-branch" class="form-input" placeholder="main" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="settings-section" style="margin-top:20px">
+        <h4>Security</h4>
+        <button class="btn-danger btn-sm" id="reset-pattern-btn" type="button">Reset Unlock Pattern</button>
+      </div>
+
+      <div class="form-actions" style="margin-top:20px">
+        <button type="button" class="btn-secondary" id="cancel-settings-btn" onclick="document.getElementById('settings-modal').style.display='none'">Cancel</button>
+        <button type="button" class="btn-primary" id="save-settings-btn">Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
