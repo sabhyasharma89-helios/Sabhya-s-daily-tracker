@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>" />
+</head>
+<body>
+
+<!-- ═══════════════════════ PATTERN LOCK SCREEN ═══════════════════════ -->
+<div id="lock-screen" class="lock-screen">
+  <div class="lock-bg-blur"></div>
+  <div class="lock-container">
+    <div class="lock-brand">
+      <div class="lock-logo">📋</div>
+      <h1 class="lock-app-name">Daily Tracker</h1>
+      <p class="lock-app-sub">Sabhya's Workspace</p>
+    </div>
+    <div class="lock-body">
+      <p id="lock-title" class="lock-title">Draw Pattern to Unlock</p>
+      <p id="lock-message" class="lock-message"></p>
+      <div class="canvas-wrap">
+        <canvas id="pattern-canvas" width="270" height="270"></canvas>
+      </div>
+      <div class="lock-actions">
+        <button id="lock-clear-btn" class="btn-ghost" onclick="PatternLock.clear()">Clear</button>
+        <button id="lock-reset-btn" class="btn-ghost danger" onclick="PatternLock.startReset()">Reset Pattern</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ MAIN APPLICATION ═══════════════════════ -->
+<div id="app" class="app hidden">
+
+  <!-- ─── HEADER ─── -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="app-logo">📋</div>
+        <div>
+          <div class="app-title">Daily Tracker</div>
+          <div id="sync-badge" class="sync-badge">Syncing…</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="icon-btn" id="refresh-btn" onclick="App.refresh()" title="Refresh data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        </button>
+        <button class="icon-btn" onclick="App.showAddTaskModal()" title="Add Task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="icon-btn" onclick="PatternLock.lockApp()" title="Lock">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search + Filter Row -->
+    <div class="search-row">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="search-input" placeholder="Search tasks, clients, assignees…" oninput="App.applyFilters()" />
+        <button class="search-clear hidden" id="search-clear" onclick="App.clearSearch()">✕</button>
+      </div>
+    </div>
+    <div class="filter-row" id="filter-row">
+      <button class="chip active" data-filter="all" onclick="App.setFilter(this,'all')">All</button>
+      <button class="chip" data-filter="pending" onclick="App.setFilter(this,'pending')">Pending</button>
+      <button class="chip" data-filter="completed" onclick="App.setFilter(this,'completed')">Completed</button>
+      <button class="chip urgent" data-filter="urgent" onclick="App.setFilter(this,'urgent')">🔴 Urgent</button>
+      <button class="chip medium" data-filter="medium" onclick="App.setFilter(this,'medium')">🟡 Medium</button>
+      <button class="chip low" data-filter="low" onclick="App.setFilter(this,'low')">🟢 Low</button>
+    </div>
+  </header>
+
+  <!-- ─── STATS BAR ─── -->
+  <section class="stats-bar" id="stats-bar">
+    <div class="stat-card" onclick="App.setFilter(document.querySelector('[data-filter=all]'),'all')">
+      <div class="stat-num" id="s-total">0</div>
+      <div class="stat-lbl">Total</div>
+    </div>
+    <div class="stat-card urgent" onclick="App.setFilter(document.querySelector('[data-filter=urgent]'),'urgent')">
+      <div class="stat-num" id="s-urgent">0</div>
+      <div class="stat-lbl">Urgent</div>
+    </div>
+    <div class="stat-card medium" onclick="App.setFilter(document.querySelector('[data-filter=medium]'),'medium')">
+      <div class="stat-num" id="s-medium">0</div>
+      <div class="stat-lbl">Medium</div>
+    </div>
+    <div class="stat-card low" onclick="App.setFilter(document.querySelector('[data-filter=low]'),'low')">
+      <div class="stat-num" id="s-low">0</div>
+      <div class="stat-lbl">Low</div>
+    </div>
+    <div class="stat-card pending" onclick="App.setFilter(document.querySelector('[data-filter=pending]'),'pending')">
+      <div class="stat-num" id="s-pending">0</div>
+      <div class="stat-lbl">Pending</div>
+    </div>
+    <div class="stat-card done" onclick="App.setFilter(document.querySelector('[data-filter=completed]'),'completed')">
+      <div class="stat-num" id="s-done">0</div>
+      <div class="stat-lbl">Done</div>
+    </div>
+  </section>
+
+  <!-- ─── STATUS ROW ─── -->
+  <div class="status-row">
+    <span id="last-updated">Loading data…</span>
+    <span id="active-filter-label"></span>
+  </div>
+
+  <!-- ─── MAIN CONTENT ─── -->
+  <main class="main-content" id="main-content">
+    <!-- Client sections injected here by app.js -->
+    <div id="empty-state" class="empty-state hidden">
+      <div class="empty-icon">📭</div>
+      <h3>No tasks found</h3>
+      <p id="empty-desc">No tasks match your current filter.</p>
+      <button class="btn-primary" onclick="App.showAddTaskModal()">+ Add Task Manually</button>
+    </div>
+
+    <!-- Active client sections -->
+    <div id="clients-container"></div>
+
+    <!-- Completed Section -->
+    <div class="section-block completed-section" id="completed-section">
+      <div class="section-header" onclick="App.toggleCompleted()">
+        <div class="section-header-left">
+          <span class="section-collapse-btn" id="completed-toggle-icon">▶</span>
+          <span class="section-title">✅ Completed Tasks</span>
+          <span class="badge badge-done" id="s-completed-count">0</span>
+        </div>
+        <div class="section-header-right"></div>
+      </div>
+      <div id="completed-tasks-list" class="tasks-grid hidden"></div>
+    </div>
+  </main>
+
+</div><!-- /#app -->
+
+<!-- ═══════════════════════ ADD / EDIT TASK MODAL ═══════════════════════ -->
+<div id="task-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-overlay" onclick="App.closeModal('task-modal')"></div>
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="task-modal-title">Add New Task</h3>
+      <button class="modal-close" onclick="App.closeModal('task-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-task-id" />
+      <div class="form-group">
+        <label for="f-client">Client Name <span class="req">*</span></label>
+        <input type="text" id="f-client" list="client-datalist" placeholder="Type or select client…" autocomplete="off" />
+        <datalist id="client-datalist"></datalist>
+      </div>
+      <div class="form-group">
+        <label for="f-title">Task Title <span class="req">*</span></label>
+        <input type="text" id="f-title" placeholder="Brief description of the task" />
+      </div>
+      <div class="form-group">
+        <label for="f-desc">Description</label>
+        <textarea id="f-desc" rows="3" placeholder="Detailed notes…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="f-priority">Priority <span class="req">*</span></label>
+          <select id="f-priority">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="f-assignee">Assign To</label>
+          <input type="text" id="f-assignee" list="assignee-datalist" placeholder="Employee name…" autocomplete="off" />
+          <datalist id="assignee-datalist"></datalist>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="App.closeModal('task-modal')">Cancel</button>
+      <button class="btn-primary" onclick="App.saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ TASK DETAIL MODAL ═══════════════════════ -->
+<div id="detail-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-overlay" onclick="App.closeModal('detail-modal')"></div>
+  <div class="modal-box large">
+    <div class="modal-header">
+      <div class="modal-header-meta">
+        <span id="d-client-badge" class="client-badge"></span>
+        <span id="d-priority-badge" class="priority-badge"></span>
+      </div>
+      <button class="modal-close" onclick="App.closeModal('detail-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="detail-modal-body">
+      <!-- Injected by UI.renderDetailModal() -->
+    </div>
+    <div class="modal-footer" id="detail-modal-footer">
+      <!-- Injected by UI.renderDetailModal() -->
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ CONFIRM DIALOG ═══════════════════════ -->
+<div id="confirm-dialog" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-box small">
+    <div class="modal-header">
+      <h3 id="confirm-title">Confirm</h3>
+    </div>
+    <div class="modal-body">
+      <p id="confirm-message"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="confirm-cancel">Cancel</button>
+      <button class="btn-danger" id="confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ TOAST CONTAINER ═══════════════════════ -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- ═══════════════════════ SCRIPTS ═══════════════════════ -->
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/db.js"></script>
+<script src="assets/js/ui.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
