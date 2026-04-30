@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ========== PATTERN LOCK SCREEN ========== -->
+  <div id="lock-screen" class="screen active">
+    <div class="lock-container">
+      <div class="lock-header">
+        <div class="app-logo">📋</div>
+        <h1>Daily Tracker</h1>
+        <p id="lock-subtitle" class="lock-subtitle">Draw your pattern to unlock</p>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="pattern-canvas"></canvas>
+      </div>
+      <p id="lock-message" class="lock-message"></p>
+      <button id="forgot-pattern-btn" class="btn-link">Forgot pattern? Reset</button>
+    </div>
+  </div>
+
+  <!-- ========== SETUP SCREEN ========== -->
+  <div id="setup-screen" class="screen">
+    <div class="setup-container">
+
+      <!-- Step 1: GitHub Config -->
+      <div id="setup-github" class="setup-step active">
+        <div class="setup-icon">⚙️</div>
+        <h2>Connect Your Repository</h2>
+        <p>Your tasks will be stored in a GitHub repository. Provide your details below.</p>
+        <form id="github-config-form" autocomplete="off">
+          <div class="form-group">
+            <label>GitHub Username or Organization</label>
+            <input type="text" id="setup-owner" placeholder="e.g. johndoe" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Repository Name</label>
+            <input type="text" id="setup-repo" placeholder="e.g. daily-tracker" required autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Personal Access Token (PAT)</label>
+            <input type="password" id="setup-token" placeholder="ghp_xxxxxxxxxxxx" required autocomplete="new-password">
+            <small>Needs <code>repo</code> (or <code>contents:write</code>) permission. <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">Create token ↗</a></small>
+          </div>
+          <div class="form-group">
+            <label>Branch</label>
+            <input type="text" id="setup-branch" value="main" required autocomplete="off">
+          </div>
+          <button type="submit" class="btn-primary full-width">Continue →</button>
+        </form>
+      </div>
+
+      <!-- Step 2: Set Pattern -->
+      <div id="setup-pattern-step" class="setup-step">
+        <div class="setup-icon">🔐</div>
+        <h2 id="setup-pattern-title">Create Your Lock Pattern</h2>
+        <p id="setup-pattern-instruction">Draw a pattern connecting at least 4 dots. This protects your dashboard.</p>
+        <div class="canvas-wrapper">
+          <canvas id="setup-pattern-canvas"></canvas>
+        </div>
+        <p id="setup-pattern-message" class="lock-message"></p>
+        <button id="setup-back-btn" class="btn-link">← Back</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== MAIN DASHBOARD ========== -->
+  <div id="dashboard" class="screen">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="header-logo">📋</span>
+        <h1 class="header-title">Daily Tracker</h1>
+      </div>
+      <div class="header-right">
+        <div id="sync-status" class="sync-status synced" title="Last synced">
+          <span class="sync-dot"></span>
+          <span class="sync-text" id="sync-text">Synced</span>
+        </div>
+        <button id="sync-btn" class="icon-btn" title="Sync Now">🔄</button>
+        <button id="add-task-btn" class="icon-btn" title="Add Task">➕</button>
+        <button id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+        <button id="lock-btn" class="icon-btn" title="Lock Screen">🔒</button>
+      </div>
+    </header>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+      <div class="stat-card" id="stat-all" data-stat="all">
+        <div class="stat-value" id="stat-total-val">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat-card stat-pending" id="stat-pend" data-stat="pending">
+        <div class="stat-value" id="stat-pending-val">0</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-card stat-done" id="stat-comp" data-stat="completed">
+        <div class="stat-value" id="stat-completed-val">0</div>
+        <div class="stat-label">Done</div>
+      </div>
+      <div class="stat-card stat-urgent" id="stat-urg" data-stat="high">
+        <div class="stat-value" id="stat-urgent-val">0</div>
+        <div class="stat-label">Urgent</div>
+      </div>
+      <div class="stat-card stat-medium" id="stat-med" data-stat="medium">
+        <div class="stat-value" id="stat-medium-val">0</div>
+        <div class="stat-label">Medium</div>
+      </div>
+      <div class="stat-card stat-low" id="stat-lo" data-stat="low">
+        <div class="stat-value" id="stat-low-val">0</div>
+        <div class="stat-label">Low</div>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search tasks, clients, employees…" autocomplete="off">
+        <button id="search-clear" class="search-clear hidden">✕</button>
+      </div>
+      <div class="filters-row">
+        <select id="filter-status" class="filter-select">
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select id="filter-priority" class="filter-select">
+          <option value="all">All Priority</option>
+          <option value="high">🔴 Urgent</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+        <select id="filter-employee" class="filter-select">
+          <option value="all">All Employees</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Client Tabs -->
+    <div class="tabs-container">
+      <div class="tabs-scroll" id="client-tabs-scroll">
+        <div class="tabs-wrapper" id="client-tabs">
+          <button class="tab active" data-client="__all__">All Clients</button>
+        </div>
+      </div>
+      <button class="add-client-btn" id="add-client-btn" title="Add Client">+</button>
+    </div>
+
+    <!-- Task Lists -->
+    <div class="tasks-container" id="tasks-container">
+      <div id="active-tasks-list" class="task-list">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>No tasks yet</h3>
+          <p>Tasks will appear here once emails are processed, or add one manually.</p>
+          <button class="btn-primary" id="add-first-task-btn">Add First Task</button>
+        </div>
+      </div>
+
+      <!-- Completed Section -->
+      <div class="completed-section" id="completed-section">
+        <button class="completed-header" id="completed-toggle" aria-expanded="false">
+          <span class="completed-check">✓</span>
+          <span class="completed-label">Completed Tasks</span>
+          <span class="completed-badge" id="completed-count-badge">0</span>
+          <span class="toggle-chevron">›</span>
+        </button>
+        <div class="task-list completed-list" id="completed-tasks-list" aria-hidden="true"></div>
+      </div>
+    </div>
+
+  </div><!-- /dashboard -->
+
+  <!-- ========== TASK DETAIL MODAL ========== -->
+  <div id="detail-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog modal-lg" role="dialog">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span id="detail-priority-badge" class="priority-badge"></span>
+          <h2 id="detail-title">Task Details</h2>
+        </div>
+        <button class="modal-close-btn" data-modal="detail-modal">✕</button>
+      </div>
+      <div class="modal-body" id="detail-body">
+        <!-- Dynamic -->
+      </div>
+      <div class="modal-footer" id="detail-footer">
+        <!-- Dynamic action buttons -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ADD / EDIT TASK MODAL ========== -->
+  <div id="task-form-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog">
+      <div class="modal-header">
+        <h2 id="task-form-title">Add Task</h2>
+        <button class="modal-close-btn" data-modal="task-form-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="task-form" novalidate>
+          <input type="hidden" id="edit-task-id">
+          <input type="hidden" id="edit-task-client-original">
+          <div class="form-group">
+            <label for="form-task-title">Title <span class="required">*</span></label>
+            <input type="text" id="form-task-title" placeholder="Brief, actionable task title" required>
+          </div>
+          <div class="form-group">
+            <label for="form-task-client">Client <span class="required">*</span></label>
+            <input type="text" id="form-task-client" placeholder="Client name" required list="form-client-datalist" autocomplete="off">
+            <datalist id="form-client-datalist"></datalist>
+          </div>
+          <div class="form-group">
+            <label for="form-task-priority">Priority</label>
+            <select id="form-task-priority">
+              <option value="high">🔴 Urgent (High)</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-task-assigned">Assign To</label>
+            <input type="text" id="form-task-assigned" placeholder="Employee name (optional)" list="form-employee-datalist" autocomplete="off">
+            <datalist id="form-employee-datalist"></datalist>
+          </div>
+          <div class="form-group">
+            <label for="form-task-description">Description / Notes</label>
+            <textarea id="form-task-description" rows="4" placeholder="Add any details, notes or context…"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" data-modal="task-form-modal">Cancel</button>
+            <button type="submit" class="btn-primary">Save Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SETTINGS MODAL ========== -->
+  <div id="settings-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog" role="dialog">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close-btn" data-modal="settings-modal">✕</button>
+      </div>
+      <div class="modal-body settings-body">
+
+        <section class="settings-section">
+          <h3>GitHub Configuration</h3>
+          <form id="settings-github-form">
+            <div class="form-group">
+              <label>GitHub Owner</label>
+              <input type="text" id="cfg-owner" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Repository</label>
+              <input type="text" id="cfg-repo" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label>Personal Access Token</label>
+              <input type="password" id="cfg-token" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+              <label>Branch</label>
+              <input type="text" id="cfg-branch" value="main" autocomplete="off">
+            </div>
+            <button type="submit" class="btn-primary">Save GitHub Config</button>
+          </form>
+        </section>
+
+        <section class="settings-section">
+          <h3>Team Members</h3>
+          <ul class="employees-list" id="employees-list"></ul>
+          <div class="add-employee-row">
+            <input type="text" id="new-employee-input" placeholder="Add employee name…" autocomplete="off">
+            <button class="btn-secondary" id="add-employee-btn">Add</button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>Security</h3>
+          <button class="btn-secondary" id="change-pattern-btn">🔐 Change Lock Pattern</button>
+        </section>
+
+        <section class="settings-section">
+          <h3>Data</h3>
+          <div class="settings-actions">
+            <button class="btn-secondary" id="export-data-btn">📥 Export Data (JSON)</button>
+            <button class="btn-secondary" id="force-sync-btn">🔄 Force Reload from GitHub</button>
+          </div>
+          <div class="last-sync-info" id="last-sync-info"></div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ADD CLIENT MODAL ========== -->
+  <div id="add-client-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog modal-sm" role="dialog">
+      <div class="modal-header">
+        <h2>Add Client</h2>
+        <button class="modal-close-btn" data-modal="add-client-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Client / Company Name</label>
+          <input type="text" id="new-client-name" placeholder="e.g. Acme Corp" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" data-modal="add-client-modal">Cancel</button>
+          <button class="btn-primary" id="save-client-btn">Add Client</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== RESET CONFIRM MODAL ========== -->
+  <div id="reset-modal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog modal-sm" role="dialog">
+      <div class="modal-header">
+        <h2>Reset Pattern</h2>
+        <button class="modal-close-btn" data-modal="reset-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>This will reset your lock pattern and require you to set up again. Your task data will NOT be deleted.</p>
+        <div class="form-actions">
+          <button class="btn-secondary" data-modal="reset-modal">Cancel</button>
+          <button class="btn-danger" id="confirm-reset-btn">Reset Pattern</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Scripts -->
+  <script src="js/pattern-lock.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
