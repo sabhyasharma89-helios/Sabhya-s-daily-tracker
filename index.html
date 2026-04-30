@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sabhya's Task Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <meta name="theme-color" content="#0f0f1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+
+<!-- ==================== AUTH SCREEN ==================== -->
+<div id="auth-screen" class="screen active">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon">ST</div>
+      <h1>Task Tracker</h1>
+      <p id="auth-instruction">Draw your pattern to unlock</p>
+    </div>
+    <canvas id="pattern-canvas" width="300" height="300"></canvas>
+    <p id="auth-error" class="error-text"></p>
+    <div class="auth-actions">
+      <button onclick="AuthManager.reset()" class="btn-secondary">Clear</button>
+    </div>
+    <p class="auth-footer" id="auth-footer"></p>
+  </div>
+</div>
+
+<!-- ==================== SETUP SCREEN ==================== -->
+<div id="setup-screen" class="screen">
+  <div class="setup-container">
+    <div class="auth-logo">
+      <div class="logo-icon">ST</div>
+      <h1>Task Tracker</h1>
+      <p>Your intelligent email-powered task manager</p>
+    </div>
+
+    <div class="setup-steps-indicator">
+      <div class="step-dot active" id="dot-1"></div>
+      <div class="step-dot" id="dot-2"></div>
+    </div>
+
+    <!-- Step 1: Set Pattern -->
+    <div id="setup-step-1" class="setup-step active">
+      <h3>Step 1: Set Your Security Pattern</h3>
+      <p>Draw a pattern (minimum 4 dots) to secure your dashboard</p>
+      <canvas id="setup-canvas" width="300" height="300"></canvas>
+      <p id="setup-pattern-msg" class="info-text">Draw your pattern</p>
+      <div class="setup-actions">
+        <button id="setup-clear-btn" class="btn-secondary" onclick="SetupManager.clearPattern()">Clear</button>
+        <button id="setup-next-btn" class="btn-primary" onclick="SetupManager.confirmPattern()" disabled>Set Pattern →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: GitHub Config -->
+    <div id="setup-step-2" class="setup-step">
+      <h3>Step 2: GitHub Integration</h3>
+      <p>Connect to your repository to enable data persistence and sync</p>
+      <div class="form-group">
+        <label>GitHub Personal Access Token</label>
+        <input type="password" id="setup-pat" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+        <span class="field-hint">Needs repo read/write permissions. <a href="https://github.com/settings/tokens/new" target="_blank">Create one here</a></span>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Repository Owner</label>
+          <input type="text" id="setup-owner" value="sabhyasharma89-helios">
+        </div>
+        <div class="form-group">
+          <label>Repository Name</label>
+          <input type="text" id="setup-repo" value="sabhya-s-daily-tracker">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Branch</label>
+        <input type="text" id="setup-branch" value="main">
+      </div>
+      <div class="setup-actions">
+        <button class="btn-secondary" onclick="SetupManager.goToStep(1)">← Back</button>
+        <button class="btn-primary" onclick="SetupManager.saveConfig()">Save & Open Dashboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== DASHBOARD ==================== -->
+<div id="dashboard" class="screen">
+
+  <!-- Header -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <div class="logo-icon small">ST</div>
+      <h1 class="app-title">Task Tracker</h1>
+    </div>
+    <div class="header-right">
+      <span class="sync-status" id="sync-status">
+        <span class="sync-dot" id="sync-dot"></span>
+        <span id="last-sync-text">Loading...</span>
+      </span>
+      <button class="icon-btn" id="sync-btn" onclick="App.syncNow()" title="Sync now">&#x21BB;</button>
+      <button class="icon-btn" onclick="App.openSettings()" title="Settings">&#x2699;</button>
+      <button class="icon-btn" onclick="App.lock()" title="Lock">&#x1F512;</button>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card" onclick="App.filterByStat('all')" data-stat="all">
+      <span class="stat-number" id="stat-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card" onclick="App.filterByStat('pending')" data-stat="pending">
+      <span class="stat-number" id="stat-pending">0</span>
+      <span class="stat-label">Pending</span>
+    </div>
+    <div class="stat-card" onclick="App.filterByStat('completed')" data-stat="completed">
+      <span class="stat-number" id="stat-completed">0</span>
+      <span class="stat-label">Done</span>
+    </div>
+    <div class="stat-card urgent" onclick="App.filterByStat('urgent')" data-stat="urgent">
+      <span class="stat-number" id="stat-urgent">0</span>
+      <span class="stat-label">Urgent</span>
+    </div>
+    <div class="stat-card medium" onclick="App.filterByStat('medium')" data-stat="medium">
+      <span class="stat-number" id="stat-medium">0</span>
+      <span class="stat-label">Medium</span>
+    </div>
+    <div class="stat-card low" onclick="App.filterByStat('low')" data-stat="low">
+      <span class="stat-number" id="stat-low">0</span>
+      <span class="stat-label">Low</span>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-box">
+      <span class="search-icon">&#x1F50D;</span>
+      <input type="text" id="search-input" placeholder="Search tasks, clients..." oninput="App.onSearch(this.value)">
+      <button class="search-clear hidden" id="search-clear" onclick="App.clearSearch()">&#x2715;</button>
+    </div>
+    <div class="filter-selects">
+      <select id="employee-filter" onchange="App.onFilter()">
+        <option value="">All Employees</option>
+      </select>
+      <select id="priority-filter" onchange="App.onFilter()">
+        <option value="">All Priorities</option>
+        <option value="urgent">Urgent</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select id="status-filter" onchange="App.onFilter()">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <button class="btn-primary add-task-btn" onclick="App.openAddTask()">+ Add Task</button>
+  </div>
+
+  <!-- Client Tabs -->
+  <div class="client-tabs-container">
+    <div class="client-tabs" id="client-tabs">
+      <div class="client-tab active" data-client="all" onclick="App.selectClient('all')">
+        All Clients
+      </div>
+    </div>
+    <button class="add-client-btn" onclick="App.addClient()" title="Add client">+</button>
+  </div>
+
+  <!-- Task Content -->
+  <div class="task-content" id="task-content">
+    <!-- Urgent -->
+    <div class="priority-section" id="section-urgent">
+      <div class="priority-header urgent">
+        <span>&#x1F534;</span>
+        <span>Urgent</span>
+        <span class="task-count" id="count-urgent">0</span>
+      </div>
+      <div class="task-list" id="list-urgent"></div>
+    </div>
+
+    <!-- Medium -->
+    <div class="priority-section" id="section-medium">
+      <div class="priority-header medium">
+        <span>&#x1F7E1;</span>
+        <span>Medium</span>
+        <span class="task-count" id="count-medium">0</span>
+      </div>
+      <div class="task-list" id="list-medium"></div>
+    </div>
+
+    <!-- Low -->
+    <div class="priority-section" id="section-low">
+      <div class="priority-header low">
+        <span>&#x1F7E2;</span>
+        <span>Low</span>
+        <span class="task-count" id="count-low">0</span>
+      </div>
+      <div class="task-list" id="list-low"></div>
+    </div>
+
+    <!-- Completed (collapsed) -->
+    <div class="priority-section collapsed" id="section-completed">
+      <div class="priority-header completed clickable" onclick="App.toggleCompleted()">
+        <span>&#x2705;</span>
+        <span>Completed</span>
+        <span class="task-count" id="count-completed">0</span>
+        <span class="collapse-icon" id="completed-collapse-icon">&#x25B6;</span>
+      </div>
+      <div class="task-list" id="list-completed"></div>
+    </div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <span class="empty-state-icon">&#x1F4CB;</span>
+      <p>No tasks found</p>
+      <small>Tasks will appear here after email sync, or add one manually</small>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TASK DETAIL MODAL ==================== -->
+<div id="task-modal" class="modal">
+  <div class="modal-backdrop" onclick="App.closeTaskModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title-area">
+        <span class="priority-badge" id="modal-priority-badge">URGENT</span>
+        <h2 id="modal-task-title">Task Title</h2>
+      </div>
+      <button class="modal-close" onclick="App.closeTaskModal()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-meta">
+        <div class="meta-item">
+          <label>Priority</label>
+          <select id="modal-priority">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="meta-item">
+          <label>Assignee</label>
+          <select id="modal-assignee">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+        <div class="meta-item">
+          <label>Status</label>
+          <span id="modal-status" class="status-badge">Pending</span>
+        </div>
+        <div class="meta-item">
+          <label>Created</label>
+          <span id="modal-created">-</span>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h3>Email Thread Summary</h3>
+        <div id="modal-summary" class="summary-text">No summary available.</div>
+      </div>
+
+      <div class="modal-section" id="modal-actionables-section">
+        <h3>Actionables</h3>
+        <ul id="modal-actionables" class="actionables-list"></ul>
+      </div>
+
+      <div class="modal-section">
+        <h3>Next Steps — Responsible</h3>
+        <p id="modal-responsible" class="responsible-text">Not specified</p>
+      </div>
+
+      <div class="modal-section">
+        <h3>Description</h3>
+        <p id="modal-description" class="description-text">-</p>
+      </div>
+
+      <div class="modal-section">
+        <h3>Notes</h3>
+        <textarea id="modal-notes" placeholder="Add your notes here..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-complete-btn" class="btn-success" onclick="App.toggleTaskComplete()">&#x2713; Mark Complete</button>
+      <button class="btn-primary" onclick="App.saveTaskChanges()">Save Changes</button>
+      <button class="btn-danger" onclick="App.deleteTask()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== ADD TASK MODAL ==================== -->
+<div id="add-task-modal" class="modal">
+  <div class="modal-backdrop" onclick="App.closeAddTask()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Add New Task</h2>
+      <button class="modal-close" onclick="App.closeAddTask()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Client Name *</label>
+        <input type="text" id="new-client" list="client-datalist" placeholder="Select or type client name">
+        <datalist id="client-datalist"></datalist>
+      </div>
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="new-title" placeholder="Enter task title">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="new-description" placeholder="Enter task description"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="new-priority">
+            <option value="medium">Medium</option>
+            <option value="urgent">Urgent</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Assign To</label>
+          <select id="new-assignee">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="App.saveNewTask()">Add Task</button>
+      <button class="btn-secondary" onclick="App.closeAddTask()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS MODAL ==================== -->
+<div id="settings-modal" class="modal">
+  <div class="modal-backdrop" onclick="App.closeSettings()"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Settings</h2>
+      <button class="modal-close" onclick="App.closeSettings()">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <h3>GitHub Configuration</h3>
+        <div class="form-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="s-pat" placeholder="ghp_xxxxxxxxxxxx">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Owner</label>
+            <input type="text" id="s-owner">
+          </div>
+          <div class="form-group">
+            <label>Repository</label>
+            <input type="text" id="s-repo">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="s-branch">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Team Members</h3>
+        <div id="employees-list"></div>
+        <div class="add-employee-form">
+          <div class="form-row">
+            <div class="form-group">
+              <input type="text" id="new-emp-name" placeholder="Full name">
+            </div>
+            <div class="form-group">
+              <input type="email" id="new-emp-email" placeholder="Email (optional)">
+            </div>
+          </div>
+          <button class="btn-secondary" onclick="App.addEmployee()">+ Add Team Member</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Security</h3>
+        <button class="btn-secondary" onclick="App.changePattern()">Change Unlock Pattern</button>
+      </div>
+
+      <div class="settings-section">
+        <h3>Data</h3>
+        <button class="btn-secondary" onclick="App.forceRefresh()">Force Refresh Data</button>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="App.saveSettings()">Save Settings</button>
+      <button class="btn-secondary" onclick="App.closeSettings()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TOAST & LOADING ==================== -->
+<div id="toast-container"></div>
+
+<div id="loading-overlay" class="loading-overlay hidden">
+  <div class="spinner"></div>
+  <p id="loading-text">Loading...</p>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
