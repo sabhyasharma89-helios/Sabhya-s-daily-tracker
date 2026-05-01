@@ -1,0 +1,61 @@
+name: Email Task Processor
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # Every 10 minutes
+  workflow_dispatch:
+    inputs:
+      initial_run:
+        description: 'Process last 30 days (first-time setup)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  process-emails:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Write Gmail credentials
+        run: |
+          mkdir -p /tmp/gmail_creds
+          echo '${{ secrets.GMAIL_CREDENTIALS }}' > /tmp/gmail_creds/credentials.json
+          echo '${{ secrets.GMAIL_TOKEN }}' > /tmp/gmail_creds/token.json
+
+      - name: Process emails
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GMAIL_CREDENTIALS_PATH: /tmp/gmail_creds/credentials.json
+          GMAIL_TOKEN_PATH: /tmp/gmail_creds/token.json
+          INITIAL_RUN: ${{ github.event.inputs.initial_run || 'false' }}
+        run: python scripts/process_emails.py
+
+      - name: Commit updated data
+        run: |
+          git config user.email "taskbot@users.noreply.github.com"
+          git config user.name "Task Tracker Bot"
+          git add data/tasks.json data/user_updates.json
+          if git diff --staged --quiet; then
+            echo "No changes."
+          else
+            git commit -m "chore: sync tasks [$(date -u +%Y-%m-%dT%H:%M:%SZ)]"
+            git push
+          fi
