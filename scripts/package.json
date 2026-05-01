@@ -1,0 +1,14 @@
+{
+  "name": "email-sync",
+  "version": "1.0.0",
+  "description": "Email sync script for Daily Task Tracker",
+  "type": "module",
+  "main": "email-sync.js",
+  "scripts": {
+    "sync": "node email-sync.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "googleapis": "^144.0.0"
+  }
+}
