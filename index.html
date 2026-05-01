@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sabhya's Daily Task Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ========================================================
+     SCREEN 1 — PATTERN LOCK
+     ======================================================== -->
+<div id="screen-lock" class="screen">
+  <div class="lock-container">
+    <div class="lock-logo">
+      <h1>Sabhya's Task Tracker</h1>
+      <p class="subtitle">Secure · Smart · Seamless</p>
+    </div>
+    <div class="pattern-wrapper">
+      <canvas id="pattern-canvas"></canvas>
+    </div>
+    <p class="lock-msg" id="lock-msg">Draw your pattern to unlock</p>
+    <button class="btn-link" id="btn-forgot-pattern">Forgot pattern?</button>
+  </div>
+</div>
+
+<!-- ========================================================
+     SCREEN 2 — SETUP WIZARD
+     ======================================================== -->
+<div id="screen-setup" class="screen">
+  <div class="setup-container">
+
+    <div class="setup-top">
+      <h1>Sabhya's Task Tracker</h1>
+      <p>Let's get you set up in 3 easy steps</p>
+    </div>
+
+    <!-- Progress indicator -->
+    <div class="setup-progress">
+      <div class="setup-progress-dot active" id="progress-1"></div>
+      <div class="setup-progress-line" id="progress-line-1"></div>
+      <div class="setup-progress-dot" id="progress-2"></div>
+      <div class="setup-progress-line" id="progress-line-2"></div>
+      <div class="setup-progress-dot" id="progress-3"></div>
+    </div>
+
+    <!-- STEP 1 — Create pattern -->
+    <div id="step-pattern" class="setup-step active">
+      <h2>Create Your Pattern Lock</h2>
+      <p>This pattern protects your tracker. Draw a pattern connecting at least 4 dots.</p>
+      <div class="setup-pattern-wrapper">
+        <canvas id="setup-pattern-canvas"></canvas>
+      </div>
+      <p class="setup-pattern-msg" id="setup-pattern-msg">Draw a pattern (connect at least 4 dots)</p>
+    </div>
+
+    <!-- STEP 2 — Connect Google -->
+    <div id="step-google" class="setup-step">
+      <h2>Connect Your Gmail</h2>
+      <p>The tracker reads your Gmail to automatically create and update tasks. You need a Google OAuth Client ID.</p>
+
+      <div class="instructions-card">
+        <h4>How to get your Google OAuth Client ID (one-time setup)</h4>
+        <ol>
+          <li>Go to <strong>console.cloud.google.com</strong> and sign in</li>
+          <li>Create a new project (or use an existing one)</li>
+          <li>Click <strong>APIs &amp; Services → Library</strong> → search "Gmail API" → Enable it</li>
+          <li>Click <strong>APIs &amp; Services → Credentials → + Create Credentials → OAuth client ID</strong></li>
+          <li>Choose <strong>Web application</strong> as the type</li>
+          <li>Under <strong>Authorized JavaScript origins</strong>, add your GitHub Pages URL:<br>
+              <code>https://&lt;your-username&gt;.github.io</code></li>
+          <li>Click <strong>Create</strong> and copy the <strong>Client ID</strong></li>
+        </ol>
+        <div class="note">
+          ℹ️ Your emails are processed entirely in your browser — no data is sent to any third-party server.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Google OAuth Client ID</label>
+        <input type="text" id="setup-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com">
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn-primary btn-full" id="btn-connect-google">Save &amp; Continue →</button>
+        <button class="btn-secondary" id="btn-skip-google">Skip for now</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 — Done -->
+    <div id="step-done" class="setup-step">
+      <div class="setup-done-icon">🚀</div>
+      <div class="setup-done-text">
+        <h2>All Set!</h2>
+        <p>Your tracker is ready. On first launch it will read your last 30 days of emails and build your task list. After that, it will sync every 10 minutes automatically.</p>
+        <button class="btn-primary" id="btn-start-tracker">Launch Task Tracker</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================================================
+     SCREEN 3 — DASHBOARD
+     ======================================================== -->
+<div id="screen-dashboard" class="screen">
+
+  <!-- HEADER -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <button class="icon-btn" id="btn-menu" title="Clients" aria-label="Toggle client sidebar">☰</button>
+      <h1>Task Tracker</h1>
+    </div>
+
+    <div class="header-stats">
+      <div class="stat-badge total"><span class="stat-num" id="stat-total">0</span> Total</div>
+      <div class="stat-badge pending"><span class="stat-num" id="stat-pending">0</span> Pending</div>
+      <div class="stat-badge urgent"><span class="stat-num" id="stat-urgent">0</span> Urgent</div>
+      <div class="stat-badge done"><span class="stat-num" id="stat-completed">0</span> Done</div>
+    </div>
+
+    <div class="header-right">
+      <div class="sync-area">
+        <div class="sync-status">
+          <span class="sync-dot sync-dot--idle" id="sync-dot"></span>
+          <span id="sync-label">Never synced</span>
+        </div>
+        <span class="sync-next" id="sync-next"></span>
+      </div>
+      <button class="icon-btn" id="btn-sync" title="Sync now">↻</button>
+      <button class="icon-btn" id="btn-add-employee" title="Manage employees">👥</button>
+      <button class="icon-btn" id="btn-settings" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <input type="search" id="search-input" placeholder="Search tasks, clients, assignees…" autocomplete="off">
+    <select id="filter-status">
+      <option value="">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="in_progress">In Progress</option>
+      <option value="completed">Completed</option>
+    </select>
+    <select id="filter-priority">
+      <option value="">All Priority</option>
+      <option value="urgent">Urgent</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <select id="filter-assignee">
+      <option value="">All Assignees</option>
+    </select>
+    <button class="btn-primary" id="btn-add-task">+ New Task</button>
+  </div>
+
+  <!-- BODY -->
+  <div class="dashboard-body">
+
+    <!-- CLIENT SIDEBAR -->
+    <aside class="clients-sidebar" id="clients-sidebar">
+      <div class="sidebar-header">
+        <h3>Clients</h3>
+        <button class="sidebar-close" id="sidebar-close" title="Close">✕</button>
+      </div>
+      <div class="client-tabs-list" id="client-tabs">
+        <!-- Populated by UI.refreshClients() -->
+      </div>
+      <div class="sidebar-add-btn-wrap">
+        <!-- Intentionally empty; new clients created from emails automatically -->
+      </div>
+    </aside>
+
+    <!-- TASKS MAIN AREA -->
+    <main class="tasks-area" id="tasks-area">
+
+      <!-- URGENT -->
+      <div class="priority-section" id="section-urgent">
+        <div class="section-header">
+          <span class="priority-dot urgent"></span>
+          <h3>Urgent</h3>
+          <span class="count" id="count-urgent">0</span>
+        </div>
+        <div class="task-list" id="tasks-urgent"></div>
+      </div>
+
+      <!-- HIGH -->
+      <div class="priority-section" id="section-high">
+        <div class="section-header">
+          <span class="priority-dot high"></span>
+          <h3>High Priority</h3>
+          <span class="count" id="count-high">0</span>
+        </div>
+        <div class="task-list" id="tasks-high"></div>
+      </div>
+
+      <!-- MEDIUM -->
+      <div class="priority-section" id="section-medium">
+        <div class="section-header">
+          <span class="priority-dot medium"></span>
+          <h3>Medium Priority</h3>
+          <span class="count" id="count-medium">0</span>
+        </div>
+        <div class="task-list" id="tasks-medium"></div>
+      </div>
+
+      <!-- LOW -->
+      <div class="priority-section" id="section-low">
+        <div class="section-header">
+          <span class="priority-dot low"></span>
+          <h3>Low Priority</h3>
+          <span class="count" id="count-low">0</span>
+        </div>
+        <div class="task-list" id="tasks-low"></div>
+      </div>
+
+      <!-- COMPLETED (minimised by default) -->
+      <div class="priority-section" id="section-completed">
+        <div class="section-header">
+          <span class="priority-dot completed"></span>
+          <h3>Completed</h3>
+          <span class="count" id="count-completed">0</span>
+          <span class="toggle-arrow">▾</span>
+        </div>
+        <div class="task-list" id="tasks-completed"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL — TASK DETAIL
+     ======================================================== -->
+<div id="modal-task-detail" class="modal" role="dialog" aria-modal="true" aria-labelledby="detail-title-label">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="modal-title" id="detail-title-label">Task Detail</span>
+      <button class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Populated dynamically -->
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL — CREATE / EDIT TASK
+     ======================================================== -->
+<div id="modal-task-edit" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="modal-title">New Task</span>
+      <button class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Populated by UI.openEditTaskModal() -->
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL — EMPLOYEES
+     ======================================================== -->
+<div id="modal-employees" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-content">
+    <div class="modal-header">
+      <span class="modal-title">Team Members</span>
+      <button class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="employee-list-area" id="employee-list">
+        <!-- Populated dynamically -->
+      </div>
+      <div class="add-employee-form">
+        <h4>Add Team Member</h4>
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="emp-name" placeholder="e.g. Rahul Sharma">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="emp-email" placeholder="rahul@company.com">
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input type="text" id="emp-dept" placeholder="e.g. Engineering">
+          </div>
+        </div>
+        <button class="btn-primary btn-full" id="add-employee-btn">Add Member</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL — EDIT CLIENT
+     ======================================================== -->
+<div id="modal-client-edit" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-content" style="max-width:400px">
+    <div class="modal-header">
+      <span class="modal-title">Edit Client</span>
+      <button class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Client Name *</label>
+        <input type="text" id="client-edit-name" placeholder="Client / Company name">
+      </div>
+      <div class="form-group">
+        <label>Accent Colour</label>
+        <input type="color" id="client-edit-color" value="#6366f1" style="height:42px;padding:4px 6px;cursor:pointer">
+      </div>
+      <div class="detail-actions">
+        <button class="btn-secondary modal-close">Cancel</button>
+        <button class="btn-primary" id="client-save-btn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     MODAL — SETTINGS
+     ======================================================== -->
+<div id="modal-settings" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-overlay"></div>
+  <div class="modal-content" style="max-width:500px">
+    <div class="modal-header">
+      <span class="modal-title">Settings</span>
+      <button class="modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <h4>Google OAuth Client ID</h4>
+        <div class="form-group">
+          <input type="text" id="settings-client-id" placeholder="xxxxxxxx.apps.googleusercontent.com">
+        </div>
+        <p class="settings-note">
+          Your Client ID is used only to authenticate with Google in this browser.
+          <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Manage credentials</a>
+        </p>
+        <button class="btn-primary" id="settings-save-btn">Save &amp; Reload</button>
+      </div>
+
+      <div class="settings-section">
+        <h4>Team Members</h4>
+        <p class="settings-note">Add colleagues to assign tasks to them.</p>
+        <button class="btn-secondary" id="settings-employees-btn">Manage Team Members</button>
+      </div>
+
+      <div class="settings-section">
+        <h4>Danger Zone</h4>
+        <p class="settings-note">⚠️ Resetting the pattern will require you to go through setup again. All your task data is preserved.</p>
+        <button class="danger-btn" id="settings-reset-btn">Reset Pattern Lock</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     LOADING OVERLAY
+     ======================================================== -->
+<div id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-message">Loading…</p>
+  <div class="loading-progress-wrap">
+    <progress id="loading-progress" value="0" max="100"></progress>
+    <span id="loading-progress-label"></span>
+  </div>
+</div>
+
+<!-- ========================================================
+     TOAST CONTAINER
+     ======================================================== -->
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+<!-- ========================================================
+     GOOGLE IDENTITY SERVICES (loaded async)
+     ======================================================== -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- ========================================================
+     APP SCRIPTS (in dependency order)
+     ======================================================== -->
+<script src="js/db.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/gmail.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
