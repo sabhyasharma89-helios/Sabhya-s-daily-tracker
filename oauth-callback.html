@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head><title>Authenticating…</title></head>
+<body>
+<p>Authenticating, please wait…</p>
+<script>
+  try {
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get('access_token');
+    const expiresIn = params.get('expires_in');
+    const error = params.get('error');
+    if (window.opener) {
+      window.opener.postMessage({ type: 'oauth_callback', token, expiresIn, error }, window.location.origin);
+      window.close();
+    } else {
+      document.body.innerHTML = '<p>Auth complete. You may close this tab.</p>';
+    }
+  } catch(e) {
+    document.body.innerHTML = '<p>Error: ' + e.message + '</p>';
+  }
+</script>
+</body>
+</html>
