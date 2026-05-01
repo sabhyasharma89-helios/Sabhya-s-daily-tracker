@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#4F46E5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Daily Task Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     AUTH SCREEN
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#4F46E5"/>
+        <path d="M12 20l6 6 10-12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <h1>Daily Tracker</h1>
+        <p class="auth-tagline">Your intelligent task dashboard</p>
+      </div>
+    </div>
+    <p id="auth-hint" class="auth-hint">Draw your unlock pattern</p>
+    <div class="pattern-wrap">
+      <canvas id="pattern-canvas"></canvas>
+    </div>
+    <p id="auth-msg" class="auth-msg"></p>
+    <div class="auth-footer">
+      <button id="reset-pattern-btn" class="btn-ghost btn-sm">Reset Pattern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MAIN APP
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-brand">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="9" fill="#4F46E5"/>
+        <path d="M9 16l5 5 9-10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">Daily Tracker</span>
+    </div>
+    <div class="header-search">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="M13.5 13.5L17 17" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <input type="search" id="search-input" placeholder="Search tasks, clients…" autocomplete="off" />
+      <button id="search-clear" class="search-clear hidden">✕</button>
+    </div>
+    <div class="header-actions">
+      <button id="refresh-btn" class="btn-icon" title="Refresh data">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 0 1 6-6 6 6 0 0 1 4.24 1.76L16 8M4 10l2-2M16 10a6 6 0 0 1-6 6 6 6 0 0 1-4.24-1.76L4 12m12-2l-2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button id="manage-employees-btn" class="btn-icon" title="Manage employees">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="8" cy="7" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M2 17c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M15 11a3 3 0 0 1 0-6M18 17c0-2.21-1.343-4-3-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+      <button id="lock-btn" class="btn-icon" title="Lock screen">
+        <svg viewBox="0 0 20 20" fill="none"><rect x="4" y="9" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 9V6a3 3 0 0 1 6 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- STATS BAR -->
+  <section class="stats-bar">
+    <div class="stat-card" id="stat-total">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card stat-pending" id="stat-pending">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Pending</span>
+    </div>
+    <div class="stat-card stat-done" id="stat-completed">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Completed</span>
+    </div>
+    <div class="stat-card stat-urgent" id="stat-urgent">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Urgent</span>
+    </div>
+    <div class="stat-card stat-medium" id="stat-medium">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Medium</span>
+    </div>
+    <div class="stat-card stat-low" id="stat-low">
+      <span class="stat-num">0</span>
+      <span class="stat-label">Low</span>
+    </div>
+  </section>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <div class="filter-row">
+      <select id="filter-priority" class="filter-select">
+        <option value="">All Priorities</option>
+        <option value="urgent">Urgent</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select id="filter-client" class="filter-select">
+        <option value="">All Clients</option>
+      </select>
+      <select id="filter-employee" class="filter-select">
+        <option value="">All Assignees</option>
+        <option value="__unassigned__">Unassigned</option>
+      </select>
+      <select id="filter-status" class="filter-select">
+        <option value="pending">Pending</option>
+        <option value="all">All Status</option>
+        <option value="completed">Completed</option>
+      </select>
+      <button id="clear-filters" class="btn-ghost btn-sm">Clear</button>
+    </div>
+    <div class="sync-status">
+      <span id="sync-dot" class="sync-dot"></span>
+      <span id="sync-label">Not synced yet</span>
+      <button id="add-task-btn" class="btn-primary btn-sm">+ Add Task</button>
+    </div>
+  </div>
+
+  <!-- CLIENTS + TASKS AREA -->
+  <main id="clients-container" class="clients-container">
+    <div id="empty-state" class="empty-state hidden">
+      <svg viewBox="0 0 64 64" fill="none"><rect x="8" y="8" width="48" height="48" rx="8" stroke="#CBD5E1" stroke-width="2"/><path d="M20 32h24M20 22h24M20 42h16" stroke="#CBD5E1" stroke-width="2" stroke-linecap="round"/></svg>
+      <h3>No tasks yet</h3>
+      <p>The first email sync will populate tasks automatically. You can also add tasks manually.</p>
+      <button id="empty-add-btn" class="btn-primary">+ Add Task</button>
+    </div>
+  </main>
+
+  <!-- COMPLETED SECTION -->
+  <section id="completed-section" class="completed-section">
+    <button id="completed-toggle" class="completed-toggle">
+      <svg id="completed-chevron" class="chevron" viewBox="0 0 20 20" fill="none"><path d="M5 7l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Completed Tasks
+      <span id="completed-count" class="badge badge-done">0</span>
+    </button>
+    <div id="completed-list" class="completed-list hidden"></div>
+  </section>
+
+  <!-- FAB -->
+  <button id="fab" class="fab" title="Add Task">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+  </button>
+
+</div><!-- /#app -->
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     TASK DETAIL MODAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="task-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" id="task-modal-backdrop"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title-area">
+        <span id="modal-priority-badge" class="priority-badge">urgent</span>
+        <h2 id="modal-title" class="modal-title"></h2>
+      </div>
+      <button class="modal-close" id="task-modal-close">✕</button>
+    </div>
+    <div class="modal-body" id="task-modal-body">
+      <div class="modal-meta">
+        <div class="meta-row">
+          <span class="meta-label">Client</span>
+          <span id="modal-client" class="meta-value"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Assignee</span>
+          <span id="modal-assignee" class="meta-value"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Next Action</span>
+          <span id="modal-next-person" class="meta-value"></span>
+        </div>
+        <div class="meta-row">
+          <span class="meta-label">Last Updated</span>
+          <span id="modal-updated" class="meta-value"></span>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h4 class="section-label">Summary</h4>
+        <p id="modal-summary" class="modal-text"></p>
+      </div>
+
+      <div class="modal-section" id="modal-actionables-section">
+        <h4 class="section-label">Action Items</h4>
+        <ul id="modal-actionables" class="actionables-list"></ul>
+      </div>
+
+      <div class="modal-section" id="modal-thread-section">
+        <h4 class="section-label">
+          Email Thread
+          <button id="thread-toggle" class="btn-ghost btn-xs">Show</button>
+        </h4>
+        <div id="modal-thread" class="thread-list hidden"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div class="modal-footer-row">
+        <label class="footer-label">Priority</label>
+        <div class="priority-buttons" id="modal-priority-buttons">
+          <button data-p="urgent" class="prio-btn prio-urgent">Urgent</button>
+          <button data-p="medium" class="prio-btn prio-medium">Medium</button>
+          <button data-p="low" class="prio-btn prio-low">Low</button>
+        </div>
+      </div>
+      <div class="modal-footer-row">
+        <label class="footer-label">Assign To</label>
+        <select id="modal-assignee-select" class="footer-select">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+      <div class="modal-footer-actions">
+        <button id="modal-complete-btn" class="btn-success">Mark Complete</button>
+        <button id="modal-delete-btn" class="btn-danger-ghost">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     ADD TASK MODAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="add-task-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" id="add-task-backdrop"></div>
+  <div class="modal-sheet modal-sheet-sm">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">Add New Task</h2>
+      <button class="modal-close" id="add-task-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="add-task-form" novalidate>
+        <div class="form-group">
+          <label class="form-label">Task Title *</label>
+          <input type="text" id="new-task-title" class="form-input" placeholder="Describe the task…" required maxlength="120" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Client Name *</label>
+          <input type="text" id="new-task-client" class="form-input" placeholder="Client or company name" required list="client-datalist" />
+          <datalist id="client-datalist"></datalist>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="new-task-priority" class="form-input">
+              <option value="medium">Medium</option>
+              <option value="urgent">Urgent</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Assign To</label>
+            <select id="new-task-assignee" class="form-input">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Summary / Notes</label>
+          <textarea id="new-task-summary" class="form-input form-textarea" placeholder="Optional notes or context…" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="add-task-cancel" class="btn-ghost">Cancel</button>
+          <button type="submit" class="btn-primary">Add Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     EMPLOYEES MODAL
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="emp-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop" id="emp-backdrop"></div>
+  <div class="modal-sheet modal-sheet-sm">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 class="modal-title">Team Members</h2>
+      <button class="modal-close" id="emp-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <ul id="emp-list" class="emp-list"></ul>
+      <form id="emp-form" class="emp-form" novalidate>
+        <input type="text" id="emp-name" class="form-input" placeholder="Name" required maxlength="60" />
+        <button type="submit" class="btn-primary btn-sm">Add</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     TOAST
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>
