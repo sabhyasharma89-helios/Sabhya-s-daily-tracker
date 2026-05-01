@@ -1,0 +1,60 @@
+name: Email Task Sync
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_full_sync:
+        description: 'Force full 30-day sync (re-processes all recent emails)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  sync-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm ci
+
+      - name: Process emails and update tasks
+        working-directory: scripts
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FORCE_FULL_SYNC: ${{ github.event.inputs.force_full_sync || 'false' }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node process-emails.js
+
+      - name: Commit updated data files
+        run: |
+          git config user.name "Email Task Bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/tasks.json data/clients.json data/metadata.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: sync email tasks [skip ci]"
+            git push
+          else
+            echo "No data changes to commit"
+          fi

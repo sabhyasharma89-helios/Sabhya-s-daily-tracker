@@ -1,0 +1,14 @@
+{
+  "name": "email-task-scripts",
+  "version": "1.0.0",
+  "description": "Email processing scripts for Sabhya's Daily Tracker",
+  "type": "module",
+  "scripts": {
+    "sync": "node process-emails.js",
+    "get-token": "node get-gmail-token.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.24.0",
+    "googleapis": "^140.0.0"
+  }
+}

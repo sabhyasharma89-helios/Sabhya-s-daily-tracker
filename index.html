@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a237e">
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a237e'/><text y='.9em' font-size='80' x='10'>📋</text></svg>">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     PATTERN LOCK AUTH SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-logo">
+    <h1>📋 Daily Tracker</h1>
+    <p>Sabhya's Task Intelligence Hub</p>
+  </div>
+
+  <div class="auth-card">
+    <div class="auth-title" id="auth-title">Set Your Pattern</div>
+    <div class="auth-subtitle" id="auth-subtitle">Draw a pattern to secure your tracker</div>
+
+    <canvas id="pattern-canvas" width="240" height="240"></canvas>
+
+    <div class="auth-message" id="auth-message">Draw your unlock pattern</div>
+
+    <div class="auth-actions" id="auth-actions">
+      <button class="btn-ghost" id="btn-reset-pattern">Reset Pattern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     GITHUB TOKEN SETUP SCREEN
+════════════════════════════════════════════════════════ -->
+<div id="token-screen" class="hidden">
+  <div class="auth-logo">
+    <h1>📋 Daily Tracker</h1>
+    <p>Connect to GitHub to sync your changes</p>
+  </div>
+
+  <div class="token-card">
+    <h2>Connect GitHub</h2>
+    <p>
+      To save your task edits, assignments, and manual tasks across devices,
+      enter a GitHub Personal Access Token with <strong>Contents (read/write)</strong> permission
+      for this repository.<br><br>
+      <a href="https://github.com/settings/tokens/new?description=Daily+Tracker&scopes=repo" target="_blank" rel="noopener">
+        Create token on GitHub →
+      </a>
+    </p>
+
+    <div class="form-group">
+      <label>GitHub Repository</label>
+      <input type="text" id="gh-repo-input" placeholder="username/repository-name" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label>Personal Access Token</label>
+      <input type="password" id="gh-token-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    </div>
+
+    <button class="btn-primary" id="btn-save-token">Connect &amp; Load Dashboard</button>
+    <button class="btn-skip" id="btn-skip-token">Skip — use local storage only</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden">
+
+  <!-- ── Header ─────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="2"/>
+          <line x1="9" y1="12" x2="15" y2="12"/>
+          <line x1="9" y1="16" x2="13" y2="16"/>
+        </svg>
+        <span>Daily Tracker</span>
+      </div>
+
+      <div class="header-actions">
+        <button class="header-btn" id="btn-refresh" title="Refresh data">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+        <button class="header-btn" id="btn-employees" title="Manage team">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span>Team</span>
+        </button>
+        <button class="header-btn" id="btn-lock" title="Lock screen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <span>Lock</span>
+        </button>
+        <div class="sync-indicator" id="sync-dot" title="Sync status"></div>
+      </div>
+    </div>
+
+    <!-- Stats chips -->
+    <div class="stats-bar" id="stats-bar">
+      <div class="stat-chip"><span>Loading…</span></div>
+    </div>
+  </header>
+
+  <!-- ── Sync Status Bar ─────────────────────────────── -->
+  <div class="sync-status-bar" id="sync-status-bar">
+    <span id="sync-status-text">Loading data…</span>
+  </div>
+
+  <!-- ── Filter / Search Bar ────────────────────────── -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input
+        type="search"
+        class="search-input"
+        id="search-input"
+        placeholder="Search tasks, clients, people…"
+        autocomplete="off"
+      >
+    </div>
+
+    <select class="filter-select" id="filter-priority" title="Filter by priority">
+      <option value="all">All Priorities</option>
+      <option value="high">🔴 High</option>
+      <option value="medium">🟡 Medium</option>
+      <option value="low">🟢 Low</option>
+    </select>
+
+    <select class="filter-select" id="filter-status" title="Filter by status">
+      <option value="all">All Status</option>
+      <option value="pending">Pending</option>
+      <option value="completed">Completed</option>
+    </select>
+
+    <select class="filter-select" id="filter-employee" title="Filter by employee">
+      <option value="all">All Employees</option>
+    </select>
+
+    <select class="filter-select" id="filter-client" title="Filter by client">
+      <option value="all">All Clients</option>
+    </select>
+
+    <button class="btn-add-task" id="btn-add-task">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+      Add Task
+    </button>
+  </div>
+
+  <!-- ── Main Body ───────────────────────────────────── -->
+  <main class="app-body">
+
+    <!-- Client Cards Grid -->
+    <div class="clients-grid" id="clients-grid">
+      <!-- Rendered by app.js -->
+    </div>
+
+    <!-- Completed Tasks Section -->
+    <div class="completed-section" id="completed-section" style="display:none">
+      <div class="completed-header" id="completed-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        <h3>Completed Tasks</h3>
+        <span class="completed-count-badge" id="completed-count">0</span>
+        <svg class="completed-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </div>
+      <div class="completed-body" id="completed-body">
+        <!-- Rendered by app.js -->
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TASK MODAL (Add / Edit)
+════════════════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="task-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="modal-title">Add Task</h2>
+      <button class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <!-- Dynamic content injected by app.js -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="modal-cancel">Cancel</button>
+      <button class="btn-submit" id="modal-submit">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TOAST NOTIFICATIONS
+════════════════════════════════════════════════════════ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ── Scripts (order matters) ─────────────────────────── -->
+<script src="js/auth.js"></script>
+<script src="js/github-api.js"></script>
+<script src="js/data-manager.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
