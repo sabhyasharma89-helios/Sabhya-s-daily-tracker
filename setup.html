@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Setup – Sabhya's Daily Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #6366f1; --primary-dark: #4f46e5;
+      --text: #0f172a; --text-muted: #64748b;
+      --border: #e2e8f0; --bg: #f8fafc; --surface: #fff;
+      --radius: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .setup-wrapper {
+      max-width: 760px; margin: 0 auto; padding: 40px 20px 80px;
+    }
+
+    .setup-header { text-align: center; margin-bottom: 40px; }
+    .setup-logo { width: 52px; height: 52px; margin: 0 auto 14px; }
+    .setup-logo svg { width: 100%; height: 100%; }
+    h1 { font-size: 1.7rem; font-weight: 700; margin-bottom: 6px; }
+    .subtitle { color: var(--text-muted); font-size: .95rem; }
+
+    /* Steps nav */
+    .steps-nav {
+      display: flex; gap: 0; margin-bottom: 32px;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .step-nav-item {
+      flex: 1; padding: 12px 8px; text-align: center;
+      font-size: .8rem; font-weight: 500; color: var(--text-muted);
+      background: var(--surface); border-right: 1px solid var(--border);
+      cursor: default;
+    }
+    .step-nav-item:last-child { border-right: none; }
+    .step-nav-item.active { background: var(--primary); color: #fff; }
+    .step-nav-item.done { background: #f0fdf4; color: #166534; }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px; margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+    .card .desc { color: var(--text-muted); font-size: .88rem; margin-bottom: 20px; line-height: 1.6; }
+
+    .step-pane { display: none; }
+    .step-pane.active { display: block; }
+
+    label { display: block; font-size: .82rem; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+    .form-group { margin-bottom: 16px; }
+    input[type=text], input[type=password], textarea {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid var(--border); border-radius: 8px;
+      font-size: .9rem; font-family: inherit; outline: none;
+    }
+    input:focus, textarea:focus { border-color: var(--primary); }
+    textarea { resize: vertical; min-height: 80px; font-family: monospace; font-size: .82rem; }
+    small { color: var(--text-muted); font-size: .78rem; display: block; margin-top: 4px; }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px;
+           padding: 10px 20px; border-radius: 8px; font-size: .9rem;
+           font-weight: 600; cursor: pointer; border: none; transition: .15s ease; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+    .btn-ghost:hover { background: var(--bg); }
+    .btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+    .info-box {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+      font-size: .85rem; color: #1e40af; line-height: 1.6;
+    }
+    .warn-box {
+      background: #fffbeb; border: 1px solid #fcd34d;
+      border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;
+      font-size: .85rem; color: #92400e; line-height: 1.6;
+    }
+
+    .code-block {
+      background: #1e293b; color: #e2e8f0; font-family: monospace;
+      font-size: .82rem; padding: 14px 16px; border-radius: 8px;
+      margin: 10px 0; overflow-x: auto; line-height: 1.6;
+      position: relative;
+    }
+    .copy-btn {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(255,255,255,.1); color: #cbd5e1;
+      border: none; border-radius: 4px; padding: 3px 8px;
+      font-size: .72rem; cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255,255,255,.2); }
+
+    ol, ul { padding-left: 20px; }
+    li { margin-bottom: 6px; font-size: .9rem; line-height: 1.6; }
+    li strong { color: var(--text); }
+
+    .success-screen { text-align: center; padding: 40px 20px; }
+    .success-icon { font-size: 3rem; margin-bottom: 16px; }
+    .success-screen h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .success-screen p { color: var(--text-muted); margin-bottom: 20px; }
+    .launch-btn {
+      display: inline-block; background: var(--primary); color: #fff;
+      text-decoration: none; padding: 12px 28px; border-radius: 8px;
+      font-weight: 700; font-size: 1rem;
+    }
+
+    .firebase-config-out { display: none; }
+    .firebase-config-out.visible { display: block; }
+  </style>
+</head>
+<body>
+<div class="setup-wrapper">
+
+  <div class="setup-header">
+    <div class="setup-logo">
+      <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="10" fill="#6366f1"/>
+        <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" opacity="0.9"/>
+        <circle cx="20" cy="20" r="4" fill="white"/>
+      </svg>
+    </div>
+    <h1>Daily Tracker Setup</h1>
+    <p class="subtitle">One-time configuration — takes about 10 minutes</p>
+  </div>
+
+  <!-- Steps Nav -->
+  <div class="steps-nav">
+    <div class="step-nav-item active" id="nav-1">1. Firebase</div>
+    <div class="step-nav-item" id="nav-2">2. Gmail API</div>
+    <div class="step-nav-item" id="nav-3">3. Claude API</div>
+    <div class="step-nav-item" id="nav-4">4. GitHub Secrets</div>
+    <div class="step-nav-item" id="nav-5">5. Launch</div>
+  </div>
+
+  <!-- ══════ STEP 1: Firebase ══════ -->
+  <div class="step-pane active" id="step-1">
+    <div class="card">
+      <h2>Step 1 — Firebase Firestore Setup</h2>
+      <p class="desc">Firebase Firestore is the real-time database that stores all your tasks, clients and employees. It's free for moderate usage.</p>
+
+      <div class="info-box">
+        <strong>Free tier includes:</strong> 1 GB storage · 50,000 reads/day · 20,000 writes/day — more than enough for this tracker.
+      </div>
+
+      <ol>
+        <li>Go to <strong>console.firebase.google.com</strong> and sign in with your Google account.</li>
+        <li>Click <strong>"Add project"</strong>, name it <em>daily-tracker</em>, disable Google Analytics (optional), create.</li>
+        <li>In left sidebar → <strong>Build → Firestore Database</strong> → <strong>"Create database"</strong>.</li>
+        <li>Choose <strong>Production mode</strong>, pick a region close to you (e.g. asia-south1 for India), click Enable.</li>
+        <li>Go to <strong>Project Settings</strong> (gear icon) → <strong>Service Accounts</strong> → <strong>"Generate new private key"</strong> → Download JSON. <br><em>This becomes the <code>FIREBASE_SERVICE_ACCOUNT</code> secret.</em></li>
+        <li>Still in Project Settings → click <strong>"Add app"</strong> → choose Web (&lt;/&gt;) → register → copy the <code>firebaseConfig</code> object.</li>
+      </ol>
+
+      <div class="form-group" style="margin-top:20px">
+        <label>Paste your firebaseConfig object here</label>
+        <textarea id="firebase-config-input" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "...",
+  "projectId": "...",
+  "storageBucket": "...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+        <small>This will be embedded in index.html so your browser can connect to Firestore.</small>
+      </div>
+
+      <div class="warn-box">
+        ⚠️ Also set up <strong>Firestore Security Rules</strong> so only authenticated requests can read/write.<br>
+        Go to Firestore → Rules tab → paste the rules shown in the README.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goStep(2)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STEP 2: Gmail API ══════ -->
+  <div class="step-pane" id="step-2">
+    <div class="card">
+      <h2>Step 2 — Gmail API (OAuth2)</h2>
+      <p class="desc">The email processor needs permission to read your Gmail. We use OAuth2 so your password is never stored.</p>
+
+      <ol>
+        <li>Go to <strong>console.cloud.google.com</strong> → Select the same Google project you used for Firebase (or create new).</li>
+        <li>Search for <strong>Gmail API</strong> in the API Library → Enable it.</li>
+        <li>Go to <strong>APIs &amp; Services → Credentials → Create Credentials → OAuth client ID</strong>.</li>
+        <li>Application type: <strong>Desktop app</strong>. Name it anything. Download the JSON.</li>
+        <li>Configure <strong>OAuth consent screen</strong>: External, add your email as test user.</li>
+        <li>Run the authorisation helper script below on your local machine to get a refresh token:</li>
+      </ol>
+
+      <div class="code-block" id="oauth-script">
+<button class="copy-btn" onclick="copyCode('oauth-script')">Copy</button>pip install google-auth-oauthlib
+python3 -c "
+from google_auth_oauthlib.flow import InstalledAppFlow
+import json, os
+
+# Point this at your downloaded client_secret_*.json
+CLIENT_FILE = 'client_secret.json'
+SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+
+flow = InstalledAppFlow.from_client_secrets_file(CLIENT_FILE, SCOPES)
+creds = flow.run_local_server(port=0)
+
+token = {
+    'token':         creds.token,
+    'refresh_token': creds.refresh_token,
+    'token_uri':     creds.token_uri,
+    'client_id':     creds.client_id,
+    'client_secret': creds.client_secret,
+    'scopes':        creds.scopes,
+}
+print(json.dumps(token, indent=2))
+"
+</div>
+      <p style="font-size:.88rem;color:var(--text-muted);margin-top:8px">The output JSON is your <code>GMAIL_TOKEN_JSON</code> secret.</p>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(3)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STEP 3: Claude API ══════ -->
+  <div class="step-pane" id="step-3">
+    <div class="card">
+      <h2>Step 3 — Anthropic Claude API Key</h2>
+      <p class="desc">Claude reads your email threads and extracts client names, tasks, priorities and summaries intelligently.</p>
+
+      <ol>
+        <li>Go to <strong>console.anthropic.com</strong> → Sign in or create account.</li>
+        <li>Navigate to <strong>API Keys</strong> → <strong>Create Key</strong>.</li>
+        <li>Copy the key (starts with <code>sk-ant-…</code>). This is your <code>ANTHROPIC_API_KEY</code>.</li>
+        <li>Make sure your Anthropic account has billing set up — the processor uses <em>claude-sonnet-4-6</em> which costs approximately $0.003 per email thread analysed.</li>
+      </ol>
+
+      <div class="info-box">
+        <strong>Estimated cost:</strong> 50 emails/day × $0.003 ≈ <strong>$4.50/month</strong>.<br>
+        For lighter usage it will be significantly less.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STEP 4: GitHub Secrets ══════ -->
+  <div class="step-pane" id="step-4">
+    <div class="card">
+      <h2>Step 4 — GitHub Secrets &amp; Pages</h2>
+      <p class="desc">Store credentials securely and enable GitHub Pages hosting.</p>
+
+      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px">A. Add GitHub Secrets</h3>
+      <ol>
+        <li>Go to your GitHub repository → <strong>Settings → Secrets and variables → Actions</strong>.</li>
+        <li>Add the following secrets (click <em>"New repository secret"</em> for each):</li>
+      </ol>
+
+      <table style="width:100%;border-collapse:collapse;margin:14px 0;font-size:.85rem">
+        <thead>
+          <tr style="background:var(--bg);border-bottom:2px solid var(--border)">
+            <th style="text-align:left;padding:8px 10px">Secret Name</th>
+            <th style="text-align:left;padding:8px 10px">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 10px;font-family:monospace;font-weight:600">FIREBASE_SERVICE_ACCOUNT</td>
+            <td style="padding:8px 10px">Contents of the service account JSON file</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 10px;font-family:monospace;font-weight:600">GMAIL_TOKEN_JSON</td>
+            <td style="padding:8px 10px">Output JSON from the OAuth script in Step 2</td>
+          </tr>
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px 10px;font-family:monospace;font-weight:600">ANTHROPIC_API_KEY</td>
+            <td style="padding:8px 10px">Your Claude API key (sk-ant-…)</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 10px;font-family:monospace;font-weight:600">FIRST_RUN</td>
+            <td style="padding:8px 10px">Set to <code>true</code> for first deployment, delete after first run completes</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 style="font-size:.95rem;font-weight:700;margin:20px 0 12px">B. Enable GitHub Pages</h3>
+      <ol>
+        <li>Repository → <strong>Settings → Pages</strong>.</li>
+        <li>Source: <strong>Deploy from a branch</strong>.</li>
+        <li>Branch: <strong>main</strong>, folder: <strong>/ (root)</strong>.</li>
+        <li>Save. Your site will be at <code>https://&lt;username&gt;.github.io/&lt;repo-name&gt;/</code></li>
+      </ol>
+
+      <h3 style="font-size:.95rem;font-weight:700;margin:20px 0 12px">C. Update Firebase Config in index.html</h3>
+      <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:12px">
+        Open <code>index.html</code>, find the <code>FIREBASE_CONFIG</code> block and replace the placeholder values with your actual Firebase config from Step 1.
+      </p>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goStep(3)">← Back</button>
+        <button class="btn btn-primary" onclick="goStep(5)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════ STEP 5: Launch ══════ -->
+  <div class="step-pane" id="step-5">
+    <div class="card">
+      <div class="success-screen">
+        <div class="success-icon">🚀</div>
+        <h2>You're all set!</h2>
+        <p>Here's what happens next:</p>
+        <ol style="text-align:left;max-width:400px;margin:0 auto 24px;font-size:.9rem">
+          <li>Merge this PR to <strong>main</strong> branch.</li>
+          <li>GitHub Actions will start running every <strong>10 minutes</strong>.</li>
+          <li>The <strong>first run</strong> processes your last 30 days of emails.</li>
+          <li>Open your GitHub Pages URL and draw your pattern to unlock.</li>
+          <li>Tasks appear in real-time as Claude processes your emails.</li>
+          <li>After first run completes, delete the <strong>FIRST_RUN</strong> secret.</li>
+        </ol>
+        <a href="index.html" class="launch-btn">Open Dashboard →</a>
+        <br><br>
+        <a href="index.html" style="color:var(--text-muted);font-size:.85rem">index.html</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Firestore Security Rules</h2>
+      <p class="desc">Copy these rules into Firestore → Rules to secure your database.</p>
+      <div class="code-block" id="firestore-rules">
+<button class="copy-btn" onclick="copyCode('firestore-rules')">Copy</button>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Only allow read/write from your app's domain
+    match /{document=**} {
+      allow read, write: if request.auth == null
+        && request.headers['origin'] != null;
+    }
+  }
+}
+
+// NOTE: For production, implement proper auth.
+// The pattern lock is client-side security.
+// For server-side, add Firebase Anonymous Auth or restrict by domain.
+</div>
+    </div>
+  </div>
+
+</div><!-- end setup-wrapper -->
+
+<script>
+  let currentStep = 1;
+  const TOTAL_STEPS = 5;
+
+  function goStep(n) {
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    document.getElementById(`nav-${currentStep}`).classList.remove('active');
+    document.getElementById(`nav-${currentStep}`).classList.add('done');
+
+    currentStep = n;
+    document.getElementById(`step-${n}`).classList.add('active');
+    document.getElementById(`nav-${n}`).classList.remove('done');
+    document.getElementById(`nav-${n}`).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function copyCode(id) {
+    const el = document.getElementById(id);
+    const text = el.innerText.replace('Copy\n', '');
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = el.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
