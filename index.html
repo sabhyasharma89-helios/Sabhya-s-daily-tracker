@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#0f172a"/>
+<title>Sabhya's Task Tracker</title>
+<style>
+/* ─── Reset & Variables ─────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f172a; --surface:#1e293b; --card:#243147; --card-hover:#2d3c54;
+  --border:#334155; --accent:#3b82f6; --accent-dim:#1d4ed8;
+  --urgent:#ef4444; --urgent-bg:#450a0a; --medium:#f59e0b; --medium-bg:#451a03;
+  --low:#10b981; --low-bg:#022c22;
+  --text:#e2e8f0; --text-muted:#64748b; --text-dim:#94a3b8;
+  --success:#22c55e; --warning:#f59e0b; --danger:#ef4444;
+  --radius:12px; --radius-sm:8px; --shadow:0 4px 24px rgba(0,0,0,.4);
+  --transition:all .2s ease;
+}
+html{height:100%;scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);
+     color:var(--text);min-height:100%;line-height:1.5;font-size:14px;overflow-x:hidden}
+
+/* ─── Utility ───────────────────────────────────────────────────── */
+.hidden{display:none!important}
+.flex{display:flex}.flex-col{flex-direction:column}.items-center{align-items:center}
+.justify-between{justify-content:space-between}.justify-center{justify-content:center}
+.gap-1{gap:4px}.gap-2{gap:8px}.gap-3{gap:12px}.gap-4{gap:16px}
+.w-full{width:100%}.h-full{height:100%}
+.text-sm{font-size:12px}.text-xs{font-size:11px}
+.font-semibold{font-weight:600}.font-bold{font-weight:700}
+.rounded{border-radius:var(--radius-sm)}.rounded-full{border-radius:9999px}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pointer{cursor:pointer}
+.mt-1{margin-top:4px}.mt-2{margin-top:8px}.mt-3{margin-top:12px}.mt-4{margin-top:16px}
+.p-2{padding:8px}.p-3{padding:12px}.p-4{padding:16px}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;
+       font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.badge-urgent{background:var(--urgent-bg);color:var(--urgent)}
+.badge-medium{background:var(--medium-bg);color:var(--medium)}
+.badge-low{background:var(--low-bg);color:var(--low)}
+.badge-completed{background:#1e3a2a;color:#22c55e}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);
+     border:none;cursor:pointer;font-size:13px;font-weight:600;transition:var(--transition)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-dim);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface);color:var(--text)}
+.btn-danger{background:#450a0a;color:var(--danger)}
+.btn-danger:hover{background:#7f1d1d}
+.btn-sm{padding:5px 10px;font-size:12px}
+.input{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);
+       color:var(--text);padding:8px 12px;font-size:13px;width:100%;transition:var(--transition)}
+.input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.input::placeholder{color:var(--text-muted)}
+.label{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;
+       letter-spacing:.06em;margin-bottom:6px;display:block}
+select.input{cursor:pointer}
+textarea.input{resize:vertical;min-height:80px}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ─── Screen system ──────────────────────────────────────────────── */
+.screen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;
+        justify-content:center;background:var(--bg)}
+
+/* ─── Pattern Lock ───────────────────────────────────────────────── */
+#pattern-lock-container{
+  position:relative;width:240px;height:240px;margin:0 auto;
+  touch-action:none;user-select:none
+}
+#pattern-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.pattern-dots{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+              width:100%;height:100%;position:relative;z-index:2}
+.pdot{display:flex;align-items:center;justify-content:center;cursor:crosshair}
+.pdot-inner{
+  width:16px;height:16px;border-radius:50%;
+  background:var(--border);border:2px solid var(--text-muted);
+  transition:var(--transition);position:relative;z-index:3
+}
+.pdot.active .pdot-inner{background:var(--accent);border-color:var(--accent);
+  box-shadow:0 0 12px rgba(59,130,246,.7);transform:scale(1.3)}
+.pdot.error .pdot-inner{background:var(--danger);border-color:var(--danger);
+  box-shadow:0 0 12px rgba(239,68,68,.7)}
+.lock-title{font-size:22px;font-weight:700;text-align:center;margin-bottom:8px}
+.lock-subtitle{font-size:13px;color:var(--text-muted);text-align:center;margin-bottom:32px;
+               min-height:20px;transition:var(--transition)}
+.lock-subtitle.error{color:var(--danger)}
+.lock-subtitle.success{color:var(--success)}
+
+/* ─── Setup screen ───────────────────────────────────────────────── */
+.setup-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:32px;width:100%;max-width:480px;box-shadow:var(--shadow)
+}
+.setup-card h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.setup-card .subtitle{color:var(--text-muted);font-size:13px;margin-bottom:28px}
+.step-indicator{display:flex;gap:8px;margin-bottom:24px}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:var(--transition)}
+.step-dot.active{background:var(--accent)}
+.step-dot.done{background:var(--success)}
+.setup-step{display:none}.setup-step.active{display:block}
+
+/* ─── Top bar (dashboard) ────────────────────────────────────────── */
+#screen-dashboard{position:static;display:flex;flex-direction:column;
+                  min-height:100vh;background:var(--bg);overflow:hidden}
+#topbar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:0 20px;height:56px;display:flex;align-items:center;
+  justify-content:space-between;position:sticky;top:0;z-index:50;
+  flex-shrink:0
+}
+.topbar-logo{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.topbar-logo span{color:var(--accent)}
+.topbar-actions{display:flex;align-items:center;gap:8px}
+.sync-status{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--success)}
+.sync-dot.syncing{background:var(--warning);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--danger)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── Stats bar ──────────────────────────────────────────────────── */
+#statsbar{
+  display:flex;gap:12px;padding:16px 20px;overflow-x:auto;flex-shrink:0;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch
+}
+#statsbar::-webkit-scrollbar{display:none}
+.stat-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 16px;min-width:120px;flex-shrink:0;cursor:pointer;transition:var(--transition)
+}
+.stat-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.stat-card.active-filter{border-color:var(--accent);background:rgba(59,130,246,.1)}
+.stat-card .stat-num{font-size:26px;font-weight:700;line-height:1}
+.stat-card .stat-label{font-size:11px;color:var(--text-muted);margin-top:3px;text-transform:uppercase;
+                        letter-spacing:.05em}
+.stat-urgent .stat-num{color:var(--urgent)}
+.stat-medium .stat-num{color:var(--medium)}
+.stat-low .stat-num{color:var(--low)}
+.stat-completed .stat-num{color:var(--success)}
+
+/* ─── Controls bar ───────────────────────────────────────────────── */
+#controls{
+  padding:0 20px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex-shrink:0
+}
+#search-box{flex:1;min-width:180px;max-width:320px}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap}
+.filter-select{background:var(--surface);border:1px solid var(--border);
+               border-radius:var(--radius-sm);color:var(--text);padding:7px 10px;
+               font-size:12px;cursor:pointer}
+.filter-select:focus{outline:none;border-color:var(--accent)}
+#add-task-btn{margin-left:auto;background:var(--accent);color:#fff;
+              border:none;border-radius:var(--radius-sm);padding:8px 14px;
+              font-size:13px;font-weight:600;cursor:pointer;display:flex;
+              align-items:center;gap:5px;transition:var(--transition);white-space:nowrap}
+#add-task-btn:hover{background:var(--accent-dim);transform:translateY(-1px)}
+
+/* ─── Main content ────────────────────────────────────────────────── */
+#main-content{flex:1;overflow-y:auto;padding:0 20px 100px;min-height:0}
+
+/* ─── Client sections ─────────────────────────────────────────────── */
+.client-section{margin-bottom:12px}
+.client-header{
+  display:flex;align-items:center;gap:8px;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  cursor:pointer;transition:var(--transition);user-select:none
+}
+.client-header:hover{border-color:var(--accent);background:var(--card)}
+.client-header.dragging{opacity:.5}
+.client-header.drag-over{border-color:var(--accent);border-style:dashed}
+.client-chevron{font-size:12px;color:var(--text-muted);transition:transform .2s;margin-left:auto}
+.client-collapsed .client-chevron{transform:rotate(-90deg)}
+.client-name{font-weight:600;font-size:15px;flex:1}
+.client-count{background:var(--border);border-radius:9999px;padding:1px 8px;
+              font-size:11px;color:var(--text-muted)}
+.client-tasks{padding:4px 0 0}
+
+/* ─── Task cards ─────────────────────────────────────────────────── */
+.task-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  margin:5px 0;padding:12px 14px;cursor:pointer;transition:var(--transition);
+  display:flex;align-items:flex-start;gap:12px;position:relative
+}
+.task-card:hover{background:var(--card-hover);border-color:var(--text-muted);transform:translateX(2px)}
+.task-card .priority-bar{
+  position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:3px 0 0 3px
+}
+.task-card .priority-bar.urgent{background:var(--urgent)}
+.task-card .priority-bar.medium{background:var(--medium)}
+.task-card .priority-bar.low{background:var(--low)}
+.task-checkbox{
+  width:18px;height:18px;border-radius:4px;border:2px solid var(--border);
+  background:transparent;cursor:pointer;flex-shrink:0;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;transition:var(--transition)
+}
+.task-checkbox:hover{border-color:var(--accent)}
+.task-checkbox.checked{background:var(--success);border-color:var(--success)}
+.task-checkbox.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700}
+.task-body{flex:1;min-width:0}
+.task-title{font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px;
+            padding-left:3px}
+.task-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.task-assign{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px}
+.task-time{font-size:11px;color:var(--text-muted)}
+.task-thread-icon{font-size:11px;color:var(--text-muted)}
+
+/* ─── Completed section ──────────────────────────────────────────── */
+#completed-section{margin-top:8px}
+.completed-header{
+  display:flex;align-items:center;gap:8px;padding:10px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  cursor:pointer;transition:var(--transition)
+}
+.completed-header:hover{border-color:var(--border)}
+.completed-header h3{font-size:13px;font-weight:600;color:var(--text-muted);flex:1}
+.completed-toggle{font-size:11px;color:var(--text-muted);transition:transform .2s}
+.completed-open .completed-toggle{transform:rotate(180deg)}
+.completed-tasks-list{display:none;padding:4px 0 0}
+.completed-open .completed-tasks-list{display:block}
+.task-card.completed-task{opacity:.7}
+.task-card.completed-task .task-title{text-decoration:line-through;color:var(--text-muted)}
+
+/* ─── Empty state ─────────────────────────────────────────────────── */
+.empty-state{text-align:center;padding:48px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:40px;margin-bottom:12px}
+.empty-state p{font-size:13px}
+
+/* ─── Modal overlay ──────────────────────────────────────────────── */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:20px;overflow-y:auto;backdrop-filter:blur(4px)
+}
+.modal-overlay.hidden{display:none!important}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  width:100%;max-width:620px;box-shadow:var(--shadow);position:relative;
+  animation:slideUp .25s ease;margin:auto
+}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:20px 20px 0;gap:12px
+}
+.modal-header h2{font-size:17px;font-weight:700;line-height:1.3;flex:1}
+.modal-close{background:none;border:none;color:var(--text-muted);cursor:pointer;
+             font-size:20px;padding:2px;line-height:1;flex-shrink:0;margin-top:-2px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:16px 20px 20px}
+.modal-footer{
+  border-top:1px solid var(--border);padding:14px 20px;
+  display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap
+}
+.form-group{margin-bottom:16px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.form-row{grid-template-columns:1fr}}
+
+/* Task detail specific */
+.detail-section{margin-bottom:20px}
+.detail-section h4{font-size:12px;font-weight:700;color:var(--text-muted);
+                   text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;
+                   display:flex;align-items:center;gap:6px}
+.thread-summary{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px;font-size:13px;color:var(--text-dim);line-height:1.6
+}
+.actionables-list{list-style:none;padding:0}
+.actionables-list li{
+  display:flex;align-items:flex-start;gap:8px;padding:6px 0;
+  border-bottom:1px solid var(--border);font-size:13px
+}
+.actionables-list li:last-child{border-bottom:none}
+.actionables-list li::before{content:'→';color:var(--accent);font-weight:700;flex-shrink:0}
+.participants-list{display:flex;flex-wrap:wrap;gap:6px}
+.participant-chip{
+  background:var(--card);border:1px solid var(--border);border-radius:9999px;
+  padding:3px 10px;font-size:11px;color:var(--text-dim)
+}
+.next-step-box{
+  background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);
+  border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;
+  display:flex;align-items:center;gap:8px
+}
+
+/* ─── Toast ──────────────────────────────────────────────────────── */
+#toast-container{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+                 z-index:999;display:flex;flex-direction:column;gap:8px;
+                 align-items:center;pointer-events:none}
+.toast{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:10px 18px;font-size:13px;color:var(--text);
+  animation:toastIn .3s ease;box-shadow:var(--shadow);pointer-events:none
+}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--danger)}
+.toast.info{border-left:3px solid var(--accent)}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* ─── Loading spinner ─────────────────────────────────────────────── */
+.spinner{
+  width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .6s linear infinite;display:inline-block
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+@media(max-width:600px){
+  #topbar{padding:0 12px}
+  #statsbar{padding:12px}
+  #controls{padding:0 12px 10px}
+  #main-content{padding:0 12px 80px}
+  .setup-card{padding:20px;margin:12px}
+  .modal{margin:8px}
+  .modal-header{padding:16px 16px 0}
+  .modal-body{padding:12px 16px 16px}
+  .modal-footer{padding:12px 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     SETUP SCREEN
+════════════════════════════════════════════════════ -->
+<div id="screen-setup" class="screen hidden">
+  <div class="setup-card">
+    <h1>Task Tracker Setup</h1>
+    <p class="subtitle">One-time configuration. Your data stays encrypted locally.</p>
+
+    <div class="step-indicator">
+      <div class="step-dot active" id="sdot-0"></div>
+      <div class="step-dot" id="sdot-1"></div>
+      <div class="step-dot" id="sdot-2"></div>
+    </div>
+
+    <!-- Step 1: Draw pattern -->
+    <div class="setup-step active" id="setup-step-0">
+      <p class="label">Step 1 of 3 — Create your unlock pattern</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
+        Draw a pattern by connecting at least 4 dots. This will protect your dashboard.
+      </p>
+      <div id="setup-pattern-container">
+        <div id="setup-pattern-lock-container" class="pattern-lock-container">
+          <canvas id="setup-canvas" class="pattern-canvas"></canvas>
+          <div class="pattern-dots" id="setup-dots"></div>
+        </div>
+        <p id="setup-pattern-msg" class="lock-subtitle">Draw your pattern</p>
+      </div>
+      <button class="btn btn-primary w-full mt-3" id="setup-step1-next" disabled>Continue →</button>
+    </div>
+
+    <!-- Step 2: Confirm pattern -->
+    <div class="setup-step" id="setup-step-1">
+      <p class="label">Step 2 of 3 — Confirm your pattern</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">
+        Draw the same pattern again to confirm.
+      </p>
+      <div id="confirm-pattern-container">
+        <div id="confirm-pattern-lock-container" class="pattern-lock-container">
+          <canvas id="confirm-canvas" class="pattern-canvas"></canvas>
+          <div class="pattern-dots" id="confirm-dots"></div>
+        </div>
+        <p id="confirm-pattern-msg" class="lock-subtitle">Re-draw your pattern</p>
+      </div>
+    </div>
+
+    <!-- Step 3: GitHub config -->
+    <div class="setup-step" id="setup-step-2">
+      <p class="label">Step 3 of 3 — Connect to GitHub</p>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">
+        Your tasks are stored in <code>data/tasks.json</code> in your GitHub repo.
+        A Personal Access Token lets the dashboard read and update tasks.
+      </p>
+      <div class="form-group">
+        <label class="label">GitHub Repository (owner/repo)</label>
+        <input class="input" id="cfg-repo" placeholder="e.g. sabhyasharma89-helios/sabhya-s-daily-tracker" autocomplete="off"/>
+      </div>
+      <div class="form-group">
+        <label class="label">GitHub Personal Access Token</label>
+        <input class="input" id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off"/>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px">
+          Create at GitHub → Settings → Developer settings → Personal access tokens → Fine-grained.
+          Grant <strong>Contents: Read &amp; Write</strong> on this repository only.
+        </p>
+      </div>
+      <div class="form-group">
+        <label class="label">Your name (appears as task creator)</label>
+        <input class="input" id="cfg-name" placeholder="Sabhya Sharma" autocomplete="off"/>
+      </div>
+      <button class="btn btn-primary w-full mt-2" id="setup-finish-btn">
+        Save & Open Dashboard
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     LOCK SCREEN
+════════════════════════════════════════════════════ -->
+<div id="screen-lock" class="screen hidden">
+  <div style="text-align:center;padding:20px;width:300px">
+    <div style="font-size:32px;margin-bottom:8px">🔐</div>
+    <div class="lock-title">Task Tracker</div>
+    <p class="lock-subtitle" id="lock-msg">Draw your unlock pattern</p>
+    <div id="lock-pattern-lock-container" class="pattern-lock-container" style="width:220px;height:220px;margin:0 auto">
+      <canvas id="lock-canvas" class="pattern-canvas"></canvas>
+      <div class="pattern-dots" id="lock-dots"></div>
+    </div>
+    <p style="margin-top:20px;font-size:11px;color:var(--text-muted)">
+      Forgot pattern? <span class="pointer" style="color:var(--accent);text-decoration:underline"
+        onclick="resetApp()">Reset app</span>
+    </p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     DASHBOARD SCREEN
+════════════════════════════════════════════════════ -->
+<div id="screen-dashboard" class="screen hidden">
+
+  <!-- Top bar -->
+  <div id="topbar">
+    <div class="topbar-logo">
+      <span>📋</span> <span>Task<span>Tracker</span></span>
+    </div>
+    <div class="topbar-actions">
+      <div class="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-text">Loading…</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="refresh-btn" title="Refresh tasks">↻</button>
+      <button class="btn btn-ghost btn-sm" id="add-employee-btn" title="Manage employees">👥</button>
+      <button class="btn btn-ghost btn-sm" onclick="lockApp()" title="Lock">🔒</button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div id="statsbar">
+    <div class="stat-card pointer" onclick="setFilter('status','all')" id="stat-total">
+      <div class="stat-num" id="stat-total-num">0</div>
+      <div class="stat-label">Total Tasks</div>
+    </div>
+    <div class="stat-card pointer" onclick="setFilter('status','pending')" id="stat-pending">
+      <div class="stat-num" id="stat-pending-num">0</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card stat-urgent pointer" onclick="setFilter('priority','urgent')" id="stat-urgent">
+      <div class="stat-num" id="stat-urgent-num">0</div>
+      <div class="stat-label">Urgent</div>
+    </div>
+    <div class="stat-card stat-medium pointer" onclick="setFilter('priority','medium')" id="stat-medium">
+      <div class="stat-num" id="stat-medium-num">0</div>
+      <div class="stat-label">Medium</div>
+    </div>
+    <div class="stat-card stat-low pointer" onclick="setFilter('priority','low')" id="stat-low">
+      <div class="stat-num" id="stat-low-num">0</div>
+      <div class="stat-label">Low</div>
+    </div>
+    <div class="stat-card stat-completed pointer" onclick="setFilter('status','completed')" id="stat-completed">
+      <div class="stat-num" id="stat-completed-num">0</div>
+      <div class="stat-label">Completed</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <input class="input" id="search-box" placeholder="🔍 Search tasks, clients…" style="flex:1;min-width:160px;max-width:300px"
+           oninput="applyFilters()"/>
+    <div class="filter-row">
+      <select class="filter-select" id="filter-status" onchange="applyFilters()">
+        <option value="all">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select class="filter-select" id="filter-priority" onchange="applyFilters()">
+        <option value="all">All Priorities</option>
+        <option value="urgent">Urgent</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select class="filter-select" id="filter-employee" onchange="applyFilters()">
+        <option value="all">All Employees</option>
+      </select>
+      <select class="filter-select" id="filter-client" onchange="applyFilters()">
+        <option value="all">All Clients</option>
+      </select>
+    </div>
+    <button id="add-task-btn" onclick="openAddTaskModal()">+ New Task</button>
+  </div>
+
+  <!-- Main task list -->
+  <div id="main-content">
+    <div id="task-list-container"></div>
+    <div id="completed-section">
+      <div class="completed-header" onclick="toggleCompleted()" id="completed-header">
+        <h3>✅ Completed Tasks (<span id="completed-count">0</span>)</h3>
+        <span class="completed-toggle">▾</span>
+      </div>
+      <div class="completed-tasks-list" id="completed-tasks-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     TASK DETAIL MODAL
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="modal-task-detail">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="detail-title">Task Title</h2>
+      <button class="modal-close" onclick="closeModal('modal-task-detail')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <span id="detail-priority-badge" class="badge"></span>
+        <span id="detail-status-badge" class="badge"></span>
+        <span id="detail-client-badge" class="badge" style="background:rgba(59,130,246,.15);color:var(--accent)"></span>
+      </div>
+
+      <div class="detail-section">
+        <h4>📝 Description</h4>
+        <p id="detail-description" style="font-size:13px;color:var(--text-dim);line-height:1.6"></p>
+      </div>
+
+      <div class="detail-section" id="detail-thread-section">
+        <h4>📧 Email Thread Summary</h4>
+        <div class="thread-summary" id="detail-thread-summary"></div>
+      </div>
+
+      <div class="detail-section" id="detail-actionables-section">
+        <h4>✅ Actionables</h4>
+        <ul class="actionables-list" id="detail-actionables"></ul>
+      </div>
+
+      <div class="detail-section" id="detail-next-section">
+        <h4>👤 Next Step</h4>
+        <div class="next-step-box" id="detail-next-step">
+          <span>▶</span><span id="detail-next-step-text"></span>
+        </div>
+      </div>
+
+      <div class="detail-section" id="detail-participants-section">
+        <h4>👥 Email Participants</h4>
+        <div class="participants-list" id="detail-participants"></div>
+      </div>
+
+      <div class="form-row mt-3">
+        <div class="form-group">
+          <label class="label">Priority</label>
+          <select class="input" id="detail-priority-select" onchange="updateTaskPriority()">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Assign To</label>
+          <select class="input" id="detail-assign-select" onchange="updateTaskAssignment()">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+        Created: <span id="detail-created"></span> &nbsp;|&nbsp; Updated: <span id="detail-updated"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-task-detail')">Close</button>
+      <button class="btn btn-ghost btn-sm" id="detail-complete-btn" onclick="toggleTaskComplete()"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     ADD / EDIT TASK MODAL
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="modal-add-task">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="add-task-modal-title">New Task</h2>
+      <button class="modal-close" onclick="closeModal('modal-add-task')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="label">Task Title *</label>
+        <input class="input" id="new-task-title" placeholder="Describe the action required"/>
+      </div>
+      <div class="form-group">
+        <label class="label">Description</label>
+        <textarea class="input" id="new-task-desc" placeholder="Additional details…"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="label">Client *</label>
+          <select class="input" id="new-task-client">
+            <option value="">— Select or type below —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">New client name</label>
+          <input class="input" id="new-task-client-custom" placeholder="Type to create new client"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="label">Priority</label>
+          <select class="input" id="new-task-priority">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Assign To</label>
+          <select class="input" id="new-task-assign">
+            <option value="">— Unassigned —</option>
+          </select>
+        </div>
+      </div>
+      <input type="hidden" id="editing-task-id"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-task')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveTask()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     MANAGE EMPLOYEES MODAL
+════════════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="modal-employees">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Manage Employees</h2>
+      <button class="modal-close" onclick="closeModal('modal-employees')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="flex gap-2 mb-3">
+        <input class="input" id="new-emp-name" placeholder="Employee name" style="flex:1"/>
+        <input class="input" id="new-emp-email" placeholder="Email (optional)" style="flex:1"/>
+        <button class="btn btn-primary btn-sm" onclick="addEmployee()">Add</button>
+      </div>
+      <div id="employees-list" style="display:flex;flex-direction:column;gap:6px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-employees')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════ -->
+<script>
+/* ─── Config (per-session, decrypted from localStorage) ─────────── */
+let CFG = { repo: '', token: '', name: 'User' };
+let DB = { metadata: {}, clients: [], employees: [], tasks: [] };
+let DB_SHA = null;
+let CURRENT_TASK_ID = null;
+let ACTIVE_FILTER = { status: 'all', priority: 'all', employee: 'all', client: 'all' };
+
+const LS = {
+  PATTERN_HASH: 'tt_ph',
+  ENC_CONFIG: 'tt_ec',
+  ENC_IV: 'tt_iv',
+  ENC_SALT: 'tt_es',
+  COLLAPSED: 'tt_coll',
+  COMPLETED_OPEN: 'tt_comp_open',
+};
+
+/* ─── Crypto helpers ─────────────────────────────────────────────── */
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function deriveKey(patternArr, saltArr) {
+  const salt = new Uint8Array(saltArr);
+  const km = await crypto.subtle.importKey('raw',
+    new TextEncoder().encode(patternArr.join(',')),
+    'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:100000, hash:'SHA-256' },
+    km, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+}
+
+async function encryptConfig(data, patternArr) {
+  const salt = Array.from(crypto.getRandomValues(new Uint8Array(16)));
+  const iv = Array.from(crypto.getRandomValues(new Uint8Array(12)));
+  const key = await deriveKey(patternArr, salt);
+  const enc = await crypto.subtle.encrypt({ name:'AES-GCM', iv:new Uint8Array(iv) }, key,
+    new TextEncoder().encode(JSON.stringify(data)));
+  localStorage.setItem(LS.ENC_CONFIG, JSON.stringify(Array.from(new Uint8Array(enc))));
+  localStorage.setItem(LS.ENC_IV, JSON.stringify(iv));
+  localStorage.setItem(LS.ENC_SALT, JSON.stringify(salt));
+}
+
+async function decryptConfig(patternArr) {
+  const enc = JSON.parse(localStorage.getItem(LS.ENC_CONFIG));
+  const iv = JSON.parse(localStorage.getItem(LS.ENC_IV));
+  const salt = JSON.parse(localStorage.getItem(LS.ENC_SALT));
+  if (!enc || !iv || !salt) return null;
+  try {
+    const key = await deriveKey(patternArr, salt);
+    const dec = await crypto.subtle.decrypt({ name:'AES-GCM', iv:new Uint8Array(iv) }, key,
+      new Uint8Array(enc));
+    return JSON.parse(new TextDecoder().decode(dec));
+  } catch { return null; }
+}
+
+/* ─── Pattern Lock class ─────────────────────────────────────────── */
+class PatternLock {
+  constructor({ canvasId, dotsId, size=240, onComplete }) {
+    this.canvas = document.getElementById(canvasId);
+    this.dotsContainer = document.getElementById(dotsId);
+    this.size = size;
+    this.onComplete = onComplete;
+    this.pattern = [];
+    this.active = false;
+    this.lastX = 0; this.lastY = 0;
+    this._initDots();
+    this._initCanvas();
+    this._bindEvents();
+  }
+
+  _initDots() {
+    this.dotsContainer.innerHTML = '';
+    this.dotEls = [];
+    this.dotPositions = [];
+    const s = this.size;
+    const step = s / 3;
+    for (let i = 0; i < 9; i++) {
+      const div = document.createElement('div');
+      div.className = 'pdot';
+      const inner = document.createElement('div');
+      inner.className = 'pdot-inner';
+      div.appendChild(inner);
+      this.dotsContainer.appendChild(div);
+      this.dotEls.push(div);
+    }
+    // Calculate positions after layout
+    requestAnimationFrame(() => this._calcPositions());
+  }
+
+  _calcPositions() {
+    const s = this.size;
+    const step = s / 3;
+    this.dotPositions = [];
+    for (let i = 0; i < 9; i++) {
+      const col = i % 3;
+      const row = Math.floor(i / 3);
+      this.dotPositions.push({
+        x: step * col + step / 2,
+        y: step * row + step / 2,
+      });
+    }
+  }
+
+  _initCanvas() {
+    this.canvas.width = this.size;
+    this.canvas.height = this.size;
+    this.canvas.style.width = this.size + 'px';
+    this.canvas.style.height = this.size + 'px';
+    this.ctx = this.canvas.getContext('2d');
+  }
+
+  _getRelPos(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.size / rect.width;
+    const scaleY = this.size / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  }
+
+  _hitTest(x, y) {
+    const RADIUS = this.size / 9;
+    for (let i = 0; i < 9; i++) {
+      const dp = this.dotPositions[i];
+      if (!dp) continue;
+      const dx = x - dp.x, dy = y - dp.y;
+      if (Math.sqrt(dx*dx + dy*dy) < RADIUS) return i;
+    }
+    return -1;
+  }
+
+  _bindEvents() {
+    const el = this.dotsContainer.parentElement;
+    const start = (e) => {
+      e.preventDefault();
+      this.reset();
+      this.active = true;
+      const {x,y} = this._getRelPos(e);
+      this.lastX = x; this.lastY = y;
+      const idx = this._hitTest(x, y);
+      if (idx >= 0) this._addDot(idx);
+    };
+    const move = (e) => {
+      if (!this.active) return;
+      e.preventDefault();
+      const {x,y} = this._getRelPos(e);
+      this.lastX = x; this.lastY = y;
+      const idx = this._hitTest(x, y);
+      if (idx >= 0 && !this.pattern.includes(idx)) this._addDot(idx);
+      this._draw(x, y);
+    };
+    const end = (e) => {
+      if (!this.active) return;
+      this.active = false;
+      this._draw();
+      if (this.pattern.length >= 4) this.onComplete(this.pattern.slice());
+    };
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('mouseup', end);
+    el.addEventListener('touchstart', start, {passive:false});
+    el.addEventListener('touchmove', move, {passive:false});
+    el.addEventListener('touchend', end);
+  }
+
+  _addDot(idx) {
+    this.pattern.push(idx);
+    this.dotEls[idx].classList.add('active');
+  }
+
+  _draw(curX, curY) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.size, this.size);
+    if (this.pattern.length === 0) return;
+
+    ctx.strokeStyle = 'rgba(59,130,246,0.6)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+
+    for (let i = 0; i < this.pattern.length; i++) {
+      const dp = this.dotPositions[this.pattern[i]];
+      if (!dp) continue;
+      if (i === 0) ctx.moveTo(dp.x, dp.y);
+      else ctx.lineTo(dp.x, dp.y);
+    }
+    if (curX !== undefined && this.active) {
+      ctx.lineTo(curX, curY);
+    }
+    ctx.stroke();
+  }
+
+  reset() {
+    this.pattern = [];
+    this.active = false;
+    this.ctx.clearRect(0, 0, this.size, this.size);
+    this.dotEls.forEach(d => { d.classList.remove('active','error'); });
+  }
+
+  showError() {
+    this.dotEls.forEach((d,i) => {
+      if (this.pattern.includes(i)) d.classList.add('error');
+    });
+    setTimeout(() => this.reset(), 800);
+  }
+}
+
+/* ─── App init ───────────────────────────────────────────────────── */
+let setupLock, confirmLock, mainLock;
+let setupPattern = null;
+
+async function initApp() {
+  const hasPattern = !!localStorage.getItem(LS.PATTERN_HASH);
+  const hasConfig = !!localStorage.getItem(LS.ENC_CONFIG);
+
+  if (!hasPattern || !hasConfig) {
+    showSetup();
+  } else {
+    showLock();
+  }
+}
+
+function showSetup() {
+  document.getElementById('screen-lock').classList.add('hidden');
+  document.getElementById('screen-dashboard').classList.add('hidden');
+  document.getElementById('screen-setup').classList.remove('hidden');
+  initSetupPatternLocks();
+}
+
+function showLock() {
+  document.getElementById('screen-setup').classList.add('hidden');
+  document.getElementById('screen-dashboard').classList.add('hidden');
+  document.getElementById('screen-lock').classList.remove('hidden');
+  initLockScreen();
+}
+
+function showDashboard() {
+  document.getElementById('screen-setup').classList.add('hidden');
+  document.getElementById('screen-lock').classList.add('hidden');
+  const dash = document.getElementById('screen-dashboard');
+  dash.classList.remove('hidden');
+  loadAndRender();
+  // Auto-refresh every 10 minutes
+  setInterval(loadAndRender, 10 * 60 * 1000);
+}
+
+/* ─── Setup flow ─────────────────────────────────────────────────── */
+function initSetupPatternLocks() {
+  setupLock = new PatternLock({
+    canvasId: 'setup-canvas', dotsId: 'setup-dots',
+    size: 220,
+    onComplete: async (pat) => {
+      if (pat.length < 4) {
+        document.getElementById('setup-pattern-msg').textContent = 'Connect at least 4 dots';
+        document.getElementById('setup-pattern-msg').className = 'lock-subtitle error';
+        setupLock.showError(); return;
+      }
+      setupPattern = pat;
+      document.getElementById('setup-pattern-msg').textContent = '✓ Pattern recorded';
+      document.getElementById('setup-pattern-msg').className = 'lock-subtitle success';
+      document.getElementById('setup-step1-next').disabled = false;
+    }
+  });
+
+  document.getElementById('setup-step1-next').onclick = () => {
+    goToSetupStep(1);
+    confirmLock = new PatternLock({
+      canvasId: 'confirm-canvas', dotsId: 'confirm-dots',
+      size: 220,
+      onComplete: async (pat) => {
+        if (pat.join(',') !== setupPattern.join(',')) {
+          document.getElementById('confirm-pattern-msg').textContent = '✗ Patterns do not match — try again';
+          document.getElementById('confirm-pattern-msg').className = 'lock-subtitle error';
+          confirmLock.showError(); return;
+        }
+        // Save hash
+        const hash = await sha256(setupPattern.join(','));
+        localStorage.setItem(LS.PATTERN_HASH, hash);
+        document.getElementById('confirm-pattern-msg').textContent = '✓ Patterns match!';
+        document.getElementById('confirm-pattern-msg').className = 'lock-subtitle success';
+        setTimeout(() => goToSetupStep(2), 600);
+      }
+    });
+  };
+
+  document.getElementById('setup-finish-btn').onclick = async () => {
+    const repo = document.getElementById('cfg-repo').value.trim();
+    const token = document.getElementById('cfg-token').value.trim();
+    const name = document.getElementById('cfg-name').value.trim() || 'User';
+    if (!repo || !token) { toast('Please fill in Repository and Token', 'error'); return; }
+    const config = { repo, token, name };
+    await encryptConfig(config, setupPattern);
+    CFG = config;
+    showDashboard();
+  };
+}
+
+function goToSetupStep(n) {
+  document.querySelectorAll('.setup-step').forEach((s,i) => {
+    s.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.step-dot').forEach((d,i) => {
+    d.classList.toggle('active', i === n);
+    d.classList.toggle('done', i < n);
+  });
+}
+
+/* ─── Lock screen ────────────────────────────────────────────────── */
+function initLockScreen() {
+  mainLock = new PatternLock({
+    canvasId: 'lock-canvas', dotsId: 'lock-dots',
+    size: 220,
+    onComplete: async (pat) => {
+      const hash = await sha256(pat.join(','));
+      const stored = localStorage.getItem(LS.PATTERN_HASH);
+      if (hash !== stored) {
+        document.getElementById('lock-msg').textContent = '✗ Wrong pattern — try again';
+        document.getElementById('lock-msg').className = 'lock-subtitle error';
+        mainLock.showError(); return;
+      }
+      const config = await decryptConfig(pat);
+      if (!config) {
+        document.getElementById('lock-msg').textContent = '✗ Could not decrypt — wrong pattern?';
+        document.getElementById('lock-msg').className = 'lock-subtitle error';
+        mainLock.showError(); return;
+      }
+      CFG = config;
+      showDashboard();
+    }
+  });
+}
+
+function lockApp() { showLock(); }
+
+function resetApp() {
+  if (!confirm('Reset the app? All local settings will be cleared. Tasks in GitHub are kept.')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+/* ─── GitHub API ─────────────────────────────────────────────────── */
+async function ghGet(path) {
+  const res = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/${path}`, {
+    headers: { 'Authorization': `token ${CFG.token}`, 'Accept': 'application/vnd.github.v3+json' }
+  });
+  if (!res.ok) throw new Error(`GitHub GET ${path}: ${res.status}`);
+  return res.json();
+}
+
+async function ghPut(path, content, sha, message) {
+  const res = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/${path}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `token ${CFG.token}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || `GitHub PUT failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+async function loadDB() {
+  setSyncStatus('syncing', 'Syncing…');
+  try {
+    const file = await ghGet('data/tasks.json');
+    DB_SHA = file.sha;
+    const decoded = decodeURIComponent(escape(atob(file.content.replace(/\n/g,''))));
+    DB = JSON.parse(decoded);
+    setSyncStatus('ok', 'Synced ' + fmtTime(new Date()));
+    return true;
+  } catch (e) {
+    setSyncStatus('error', 'Sync failed');
+    toast('Could not load tasks: ' + e.message, 'error');
+    return false;
+  }
+}
+
+async function saveDB(msg = 'Update tasks [dashboard]') {
+  setSyncStatus('syncing', 'Saving…');
+  try {
+    const content = JSON.stringify(DB, null, 2);
+    const res = await ghPut('data/tasks.json', content, DB_SHA, msg);
+    DB_SHA = res.content.sha;
+    setSyncStatus('ok', 'Saved ' + fmtTime(new Date()));
+    return true;
+  } catch (e) {
+    setSyncStatus('error', 'Save failed');
+    toast('Save failed: ' + e.message, 'error');
+    return false;
+  }
+}
+
+/* ─── Render ─────────────────────────────────────────────────────── */
+async function loadAndRender() {
+  await loadDB();
+  render();
+}
+
+function render() {
+  updateStats();
+  updateEmployeeFilters();
+  updateClientFilters();
+  renderTasks();
+}
+
+function updateStats() {
+  const tasks = DB.tasks || [];
+  const pending = tasks.filter(t => t.status === 'pending');
+  const completed = tasks.filter(t => t.status === 'completed');
+  document.getElementById('stat-total-num').textContent = tasks.length;
+  document.getElementById('stat-pending-num').textContent = pending.length;
+  document.getElementById('stat-urgent-num').textContent = pending.filter(t=>t.priority==='urgent').length;
+  document.getElementById('stat-medium-num').textContent = pending.filter(t=>t.priority==='medium').length;
+  document.getElementById('stat-low-num').textContent = pending.filter(t=>t.priority==='low').length;
+  document.getElementById('stat-completed-num').textContent = completed.length;
+  document.getElementById('completed-count').textContent = completed.length;
+}
+
+function getFilteredTasks() {
+  const search = document.getElementById('search-box').value.toLowerCase();
+  const fStatus = document.getElementById('filter-status').value;
+  const fPriority = document.getElementById('filter-priority').value;
+  const fEmployee = document.getElementById('filter-employee').value;
+  const fClient = document.getElementById('filter-client').value;
+
+  return (DB.tasks || []).filter(t => {
+    if (fStatus !== 'all' && t.status !== fStatus) return false;
+    if (fPriority !== 'all' && t.priority !== fPriority) return false;
+    if (fEmployee !== 'all' && t.assignedTo !== fEmployee) return false;
+    if (fClient !== 'all' && t.clientId !== fClient) return false;
+    if (search) {
+      const hay = [t.title, t.description,
+        getClientName(t.clientId), getEmployeeName(t.assignedTo)].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function renderTasks() {
+  const filtered = getFilteredTasks();
+  const pending = filtered.filter(t => t.status === 'pending');
+  const completed = filtered.filter(t => t.status === 'completed');
+
+  // Group pending by client
+  const clientOrder = new Map((DB.clients || []).map((c,i) => [c.id, c.order ?? i]));
+  const sortedClients = [...(DB.clients || [])].sort((a,b) =>
+    (clientOrder.get(a.id)??999) - (clientOrder.get(b.id)??999));
+
+  const collapsed = getCollapsed();
+  const container = document.getElementById('task-list-container');
+  container.innerHTML = '';
+
+  const PRIORITY_ORDER = { urgent:0, medium:1, low:2 };
+
+  let hasAnyPending = false;
+  for (const client of sortedClients) {
+    const clientTasks = pending.filter(t => t.clientId === client.id)
+      .sort((a,b) => (PRIORITY_ORDER[a.priority]??3) - (PRIORITY_ORDER[b.priority]??3));
+    if (clientTasks.length === 0) continue;
+    hasAnyPending = true;
+
+    const section = document.createElement('div');
+    section.className = 'client-section';
+    section.dataset.clientId = client.id;
+    section.draggable = true;
+
+    const isCollapsed = collapsed.has(client.id);
+    section.innerHTML = `
+      <div class="client-header ${isCollapsed?'client-collapsed':''}"
+           onclick="toggleClientCollapse('${client.id}')">
+        <span style="font-size:16px">🏢</span>
+        <span class="client-name">${esc(client.name)}</span>
+        <span class="client-count">${clientTasks.length}</span>
+        <span class="client-chevron">▾</span>
+      </div>
+      <div class="client-tasks" style="${isCollapsed?'display:none':''}">
+        ${clientTasks.map(t => renderTaskCard(t, false)).join('')}
+      </div>`;
+
+    // Drag-to-reorder
+    section.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('clientId', client.id);
+      section.classList.add('dragging');
+    });
+    section.addEventListener('dragend', () => section.classList.remove('dragging'));
+    section.addEventListener('dragover', e => { e.preventDefault(); section.classList.add('drag-over'); });
+    section.addEventListener('dragleave', () => section.classList.remove('drag-over'));
+    section.addEventListener('drop', e => {
+      e.preventDefault();
+      section.classList.remove('drag-over');
+      const fromId = e.dataTransfer.getData('clientId');
+      if (fromId && fromId !== client.id) reorderClients(fromId, client.id);
+    });
+
+    container.appendChild(section);
+  }
+
+  // Show tasks without a client in a fallback section
+  const orphanTasks = pending.filter(t => !DB.clients.find(c=>c.id===t.clientId));
+  if (orphanTasks.length > 0) {
+    const section = document.createElement('div');
+    section.className = 'client-section';
+    section.innerHTML = `
+      <div class="client-header">
+        <span>📂</span><span class="client-name">Other</span>
+        <span class="client-count">${orphanTasks.length}</span>
+      </div>
+      <div class="client-tasks">${orphanTasks.map(t=>renderTaskCard(t,false)).join('')}</div>`;
+    container.appendChild(section);
+    hasAnyPending = true;
+  }
+
+  if (!hasAnyPending) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="icon">🎉</div>
+      <p>No pending tasks found. All caught up!</p>
+    </div>`;
+  }
+
+  // Completed
+  const completedContainer = document.getElementById('completed-tasks-list');
+  completedContainer.innerHTML = completed.length === 0
+    ? '<div class="empty-state" style="padding:20px"><p>No completed tasks yet.</p></div>'
+    : completed.sort((a,b) => new Date(b.completedAt||b.updatedAt) - new Date(a.completedAt||a.updatedAt))
+               .map(t => renderTaskCard(t, true)).join('');
+}
+
+function renderTaskCard(task, isCompleted) {
+  const empName = task.assignedTo ? getEmployeeName(task.assignedTo) : '';
+  const msgCount = task.emailThread?.messageCount || 0;
+  const dateStr = fmtDate(task.updatedAt || task.createdAt);
+  return `
+  <div class="task-card${isCompleted?' completed-task':''}" onclick="openTaskDetail('${task.id}')"
+       data-task-id="${task.id}">
+    <div class="priority-bar ${task.priority}"></div>
+    <div class="task-checkbox ${isCompleted?'checked':''}"
+         onclick="event.stopPropagation();toggleTaskCompleteById('${task.id}')">
+      ${isCompleted?'✓':''}
+    </div>
+    <div class="task-body">
+      <div class="task-title">${esc(task.title)}</div>
+      <div class="task-meta">
+        <span class="badge badge-${task.priority}">${task.priority}</span>
+        ${empName?`<span class="task-assign">👤 ${esc(empName)}</span>`:''}
+        ${msgCount?`<span class="task-thread-icon">📧 ${msgCount}</span>`:''}
+        <span class="task-time">${dateStr}</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─── Task detail modal ──────────────────────────────────────────── */
+function openTaskDetail(taskId) {
+  const task = DB.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  CURRENT_TASK_ID = taskId;
+
+  document.getElementById('detail-title').textContent = task.title;
+  document.getElementById('detail-description').textContent = task.description || 'No description.';
+
+  const pb = document.getElementById('detail-priority-badge');
+  pb.textContent = task.priority;
+  pb.className = `badge badge-${task.priority}`;
+
+  const sb = document.getElementById('detail-status-badge');
+  sb.textContent = task.status;
+  sb.className = `badge badge-${task.status === 'pending'?'medium':'completed'}`;
+
+  const cb = document.getElementById('detail-client-badge');
+  cb.textContent = getClientName(task.clientId);
+
+  const thread = task.emailThread;
+  if (thread?.summary) {
+    document.getElementById('detail-thread-summary').textContent = thread.summary;
+    document.getElementById('detail-thread-section').classList.remove('hidden');
+  } else {
+    document.getElementById('detail-thread-section').classList.add('hidden');
+  }
+
+  const actionables = thread?.actionables || [];
+  if (actionables.length > 0) {
+    document.getElementById('detail-actionables').innerHTML =
+      actionables.map(a => `<li>${esc(a)}</li>`).join('');
+    document.getElementById('detail-actionables-section').classList.remove('hidden');
+  } else {
+    document.getElementById('detail-actionables-section').classList.add('hidden');
+  }
+
+  if (thread?.nextStepPerson) {
+    document.getElementById('detail-next-step-text').textContent = thread.nextStepPerson;
+    document.getElementById('detail-next-section').classList.remove('hidden');
+  } else {
+    document.getElementById('detail-next-section').classList.add('hidden');
+  }
+
+  const participants = thread?.participants || [];
+  if (participants.length > 0) {
+    document.getElementById('detail-participants').innerHTML =
+      participants.map(p=>`<span class="participant-chip">${esc(p)}</span>`).join('');
+    document.getElementById('detail-participants-section').classList.remove('hidden');
+  } else {
+    document.getElementById('detail-participants-section').classList.add('hidden');
+  }
+
+  document.getElementById('detail-priority-select').value = task.priority;
+  populateAssignSelect('detail-assign-select', task.assignedTo);
+
+  document.getElementById('detail-created').textContent = fmtDate(task.createdAt);
+  document.getElementById('detail-updated').textContent = fmtDate(task.updatedAt);
+
+  const completeBtn = document.getElementById('detail-complete-btn');
+  if (task.status === 'completed') {
+    completeBtn.textContent = '↩ Move to Pending';
+    completeBtn.className = 'btn btn-ghost btn-sm';
+  } else {
+    completeBtn.textContent = '✅ Mark Completed';
+    completeBtn.className = 'btn btn-primary btn-sm';
+  }
+
+  openModal('modal-task-detail');
+}
+
+async function updateTaskPriority() {
+  const task = DB.tasks.find(t => t.id === CURRENT_TASK_ID);
+  if (!task) return;
+  task.priority = document.getElementById('detail-priority-select').value;
+  task.priorityManuallySet = true;
+  task.updatedAt = new Date().toISOString();
+  await saveDB();
+  render();
+  toast('Priority updated', 'success');
+}
+
+async function updateTaskAssignment() {
+  const task = DB.tasks.find(t => t.id === CURRENT_TASK_ID);
+  if (!task) return;
+  const val = document.getElementById('detail-assign-select').value;
+  task.assignedTo = val || null;
+  task.updatedAt = new Date().toISOString();
+  await saveDB();
+  render();
+  toast('Assignment updated', 'success');
+}
+
+async function toggleTaskComplete() {
+  await toggleTaskCompleteById(CURRENT_TASK_ID);
+  openTaskDetail(CURRENT_TASK_ID);
+}
+
+async function toggleTaskCompleteById(taskId) {
+  const task = DB.tasks.find(t => t.id === taskId);
+  if (!task) return;
+  if (task.status === 'pending') {
+    task.status = 'completed';
+    task.completedAt = new Date().toISOString();
+    toast('Task marked as completed ✅', 'success');
+  } else {
+    task.status = 'pending';
+    task.completedAt = null;
+    toast('Task moved back to pending', 'info');
+  }
+  task.updatedAt = new Date().toISOString();
+  await saveDB();
+  render();
+}
+
+/* ─── Add/Edit Task modal ────────────────────────────────────────── */
+function openAddTaskModal(taskId) {
+  const editing = taskId ? DB.tasks.find(t => t.id === taskId) : null;
+  document.getElementById('add-task-modal-title').textContent = editing ? 'Edit Task' : 'New Task';
+  document.getElementById('new-task-title').value = editing?.title || '';
+  document.getElementById('new-task-desc').value = editing?.description || '';
+  document.getElementById('new-task-priority').value = editing?.priority || 'medium';
+  document.getElementById('editing-task-id').value = taskId || '';
+  document.getElementById('new-task-client-custom').value = '';
+
+  // Populate client select
+  const sel = document.getElementById('new-task-client');
+  sel.innerHTML = '<option value="">— Select client —</option>' +
+    (DB.clients||[]).map(c=>`<option value="${c.id}" ${editing?.clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+
+  populateAssignSelect('new-task-assign', editing?.assignedTo);
+  openModal('modal-add-task');
+}
+
+async function saveTask() {
+  const title = document.getElementById('new-task-title').value.trim();
+  if (!title) { toast('Please enter a task title', 'error'); return; }
+
+  let clientId = document.getElementById('new-task-client').value;
+  const customClient = document.getElementById('new-task-client-custom').value.trim();
+  if (customClient) {
+    const c = getOrCreateClient(customClient);
+    clientId = c.id;
+  }
+  if (!clientId) { toast('Please select or enter a client name', 'error'); return; }
+
+  const editId = document.getElementById('editing-task-id').value;
+  const now = new Date().toISOString();
+
+  if (editId) {
+    const task = DB.tasks.find(t => t.id === editId);
+    if (task) {
+      task.title = title;
+      task.description = document.getElementById('new-task-desc').value;
+      task.clientId = clientId;
+      task.priority = document.getElementById('new-task-priority').value;
+      task.priorityManuallySet = true;
+      task.assignedTo = document.getElementById('new-task-assign').value || null;
+      task.updatedAt = now;
+    }
+  } else {
+    DB.tasks.push({
+      id: uuid4(),
+      clientId,
+      title,
+      description: document.getElementById('new-task-desc').value,
+      priority: document.getElementById('new-task-priority').value,
+      priorityManuallySet: true,
+      status: 'pending',
+      assignedTo: document.getElementById('new-task-assign').value || null,
+      emailThread: null,
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+    });
+  }
+
+  closeModal('modal-add-task');
+  await saveDB(editId ? 'Update task' : 'Add manual task');
+  render();
+  toast(editId ? 'Task updated' : 'Task created', 'success');
+}
+
+/* ─── Employees modal ────────────────────────────────────────────── */
+document.getElementById('add-employee-btn').onclick = () => {
+  renderEmployeesList();
+  openModal('modal-employees');
+};
+
+function renderEmployeesList() {
+  const list = document.getElementById('employees-list');
+  const emps = DB.employees || [];
+  list.innerHTML = emps.length === 0
+    ? '<p style="font-size:13px;color:var(--text-muted)">No employees yet. Add one above.</p>'
+    : emps.map(e => `
+      <div class="flex items-center gap-2" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 12px">
+        <span style="flex:1;font-size:13px">👤 ${esc(e.name)} ${e.email?`<span style="color:var(--text-muted)">&lt;${esc(e.email)}&gt;</span>`:''}</span>
+        <button class="btn btn-danger btn-sm" onclick="removeEmployee('${e.id}')">✕</button>
+      </div>`).join('');
+}
+
+async function addEmployee() {
+  const name = document.getElementById('new-emp-name').value.trim();
+  const email = document.getElementById('new-emp-email').value.trim();
+  if (!name) { toast('Enter employee name', 'error'); return; }
+  if (!DB.employees) DB.employees = [];
+  DB.employees.push({ id: uuid4(), name, email });
+  document.getElementById('new-emp-name').value = '';
+  document.getElementById('new-emp-email').value = '';
+  await saveDB('Add employee');
+  renderEmployeesList();
+  updateEmployeeFilters();
+  toast(`${name} added`, 'success');
+}
+
+async function removeEmployee(id) {
+  DB.employees = (DB.employees||[]).filter(e=>e.id!==id);
+  // Remove assignments
+  (DB.tasks||[]).forEach(t=>{ if(t.assignedTo===id) t.assignedTo=null; });
+  await saveDB('Remove employee');
+  renderEmployeesList();
+  render();
+  toast('Employee removed', 'success');
+}
+
+/* ─── Filtering ──────────────────────────────────────────────────── */
+function applyFilters() { renderTasks(); updateStats(); }
+
+function setFilter(type, value) {
+  if (type === 'status') document.getElementById('filter-status').value = value;
+  if (type === 'priority') document.getElementById('filter-priority').value = value;
+  applyFilters();
+}
+
+function updateEmployeeFilters() {
+  const sel = document.getElementById('filter-employee');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All Employees</option>' +
+    (DB.employees||[]).map(e=>`<option value="${e.id}" ${cur===e.id?'selected':''}>${esc(e.name)}</option>`).join('');
+}
+
+function updateClientFilters() {
+  const sel = document.getElementById('filter-client');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="all">All Clients</option>' +
+    (DB.clients||[]).map(c=>`<option value="${c.id}" ${cur===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+}
+
+function populateAssignSelect(selId, currentVal) {
+  const sel = document.getElementById(selId);
+  sel.innerHTML = '<option value="">— Unassigned —</option>' +
+    (DB.employees||[]).map(e=>`<option value="${e.id}" ${currentVal===e.id?'selected':''}>${esc(e.name)}</option>`).join('');
+}
+
+/* ─── Client collapse & reorder ─────────────────────────────────── */
+function getCollapsed() {
+  return new Set(JSON.parse(localStorage.getItem(LS.COLLAPSED)||'[]'));
+}
+
+function setCollapsed(set) {
+  localStorage.setItem(LS.COLLAPSED, JSON.stringify([...set]));
+}
+
+function toggleClientCollapse(clientId) {
+  const s = getCollapsed();
+  if (s.has(clientId)) s.delete(clientId); else s.add(clientId);
+  setCollapsed(s);
+  renderTasks();
+}
+
+async function reorderClients(fromId, toId) {
+  const clients = DB.clients;
+  const fromIdx = clients.findIndex(c=>c.id===fromId);
+  const toIdx = clients.findIndex(c=>c.id===toId);
+  if (fromIdx<0||toIdx<0) return;
+  const [item] = clients.splice(fromIdx,1);
+  clients.splice(toIdx,0,item);
+  clients.forEach((c,i)=>c.order=i);
+  await saveDB('Reorder clients');
+  render();
+}
+
+/* ─── Completed section ──────────────────────────────────────────── */
+function toggleCompleted() {
+  const header = document.getElementById('completed-header');
+  header.classList.toggle('completed-open');
+  localStorage.setItem(LS.COMPLETED_OPEN, header.classList.contains('completed-open')? '1':'0');
+}
+
+/* ─── Helpers ────────────────────────────────────────────────────── */
+function getClientName(clientId) {
+  return (DB.clients||[]).find(c=>c.id===clientId)?.name || 'Unknown';
+}
+
+function getEmployeeName(empId) {
+  return (DB.employees||[]).find(e=>e.id===empId)?.name || '';
+}
+
+function getOrCreateClient(name) {
+  const existing = (DB.clients||[]).find(c=>c.name.toLowerCase()===name.toLowerCase());
+  if (existing) return existing;
+  const c = { id:uuid4(), name, order:DB.clients.length, collapsed:false };
+  if (!DB.clients) DB.clients=[];
+  DB.clients.push(c);
+  return c;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function uuid4() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16));
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  const now = new Date();
+  const diff = (now - d) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+  if (diff < 7*86400) return Math.floor(diff/86400) + 'd ago';
+  return d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'2-digit'});
+}
+
+function fmtTime(d) {
+  return d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+
+function setSyncStatus(state, msg) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot' + (state==='syncing'?' syncing':state==='error'?' error':'');
+  document.getElementById('sync-text').textContent = msg;
+}
+
+function toast(msg, type='info') {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(()=>el.remove(), 3500);
+}
+
+/* ─── Modal helpers ──────────────────────────────────────────────── */
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  CURRENT_TASK_ID = null;
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.add('hidden');
+  });
+});
+
+// Refresh button
+document.getElementById('refresh-btn').onclick = async () => {
+  await loadAndRender();
+  toast('Tasks refreshed', 'success');
+};
+
+/* ─── Patch up pattern lock container styles ─────────────────────── */
+const patternContainerStyle = document.createElement('style');
+patternContainerStyle.textContent = `
+.pattern-lock-container{position:relative;touch-action:none;user-select:none}
+.pattern-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.pattern-dots{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%;
+              position:relative;z-index:2}`;
+document.head.appendChild(patternContainerStyle);
+
+/* ─── Start ──────────────────────────────────────────────────────── */
+window.addEventListener('load', initApp);
+</script>
+</body>
+</html>
