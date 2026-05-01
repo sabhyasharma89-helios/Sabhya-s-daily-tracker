@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Sabhya's AI-powered Email Task Tracker">
+  <title>Sabhya's Daily Task Tracker</title>
+
+  <!-- Preconnect fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     LOADING SCREEN
+════════════════════════════════════════════════════════════ -->
+<div id="loading-screen" class="screen active">
+  <div class="loader-logo">SDT</div>
+  <div class="spinner"></div>
+  <p style="color:var(--text2);font-size:.85rem">Loading your tracker…</p>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SETUP WIZARD
+════════════════════════════════════════════════════════════ -->
+<div id="setup-screen" class="screen">
+  <div class="setup-card">
+
+    <h1>Sabhya's Daily Tracker</h1>
+    <p class="sub">First-time setup — takes about 2 minutes</p>
+
+    <!-- Step indicators -->
+    <div class="step-indicator">
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+
+    <!-- Step 1: Welcome & GitHub -->
+    <div class="setup-step">
+      <div class="form-group">
+        <label>GitHub Username / Org</label>
+        <input id="gh-owner" type="text" placeholder="e.g. sabhyasharma89">
+      </div>
+      <div class="form-group">
+        <label>Repository Name</label>
+        <input id="gh-repo" type="text" placeholder="e.g. sabhya-s-daily-tracker">
+        <small>This repo must have GitHub Pages enabled (Settings → Pages → Deploy from branch → main)</small>
+      </div>
+      <div class="form-group">
+        <label>Personal Access Token (PAT)</label>
+        <input id="gh-token" type="password" placeholder="ghp_…">
+        <small>
+          Create at GitHub → Settings → Developer settings → Personal access tokens → Fine-grained token.
+          Required scopes: <strong>repo</strong> (read &amp; write contents + actions).
+        </small>
+      </div>
+      <div class="form-group">
+        <label>Branch (default: main)</label>
+        <input id="gh-branch" type="text" placeholder="main" value="main">
+      </div>
+      <div class="setup-actions">
+        <button id="setup-next-1" class="btn btn-primary btn-full">
+          Next: Set Pattern →
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 2: Pattern setup (canvas injected here) -->
+    <div class="setup-step hidden" style="text-align:center">
+      <p id="auth-title-setup" style="font-weight:700;margin-bottom:.5rem">Draw your unlock pattern</p>
+      <p id="auth-message-setup" class="auth-message" style="margin-bottom:1rem">Connect at least 4 dots</p>
+      <canvas id="setup-pattern-canvas" style="display:inline-block"></canvas>
+      <div class="setup-actions" style="margin-top:1.5rem">
+        <button id="setup-prev-2" class="btn btn-secondary">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Email secrets reminder -->
+    <div class="setup-step hidden">
+      <h2 style="font-size:1rem;margin-bottom:1rem">🔑 Add GitHub Secrets</h2>
+      <p style="font-size:.88rem;color:var(--text2);line-height:1.6;margin-bottom:1rem">
+        For the AI email processor to work, add these secrets to your GitHub repository:<br>
+        <strong>Settings → Secrets and variables → Actions → New repository secret</strong>
+      </p>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.85rem;font-family:monospace;font-size:.78rem;color:var(--text2);line-height:2">
+        GMAIL_CLIENT_ID<br>
+        GMAIL_CLIENT_SECRET<br>
+        GMAIL_REFRESH_TOKEN<br>
+        ANTHROPIC_API_KEY
+      </div>
+      <p style="font-size:.8rem;color:var(--text3);margin-top:.75rem">
+        Run <code>python scripts/get_gmail_token.py</code> locally once to get your Gmail credentials.
+        Get your Anthropic key from <strong>console.anthropic.com</strong>.
+      </p>
+      <div class="setup-actions" style="margin-top:1.5rem">
+        <button id="setup-prev-3" class="btn btn-secondary">← Back</button>
+        <button id="setup-finish" class="btn btn-primary">Finish Setup ✓</button>
+      </div>
+    </div>
+
+  </div><!-- /setup-card -->
+</div><!-- /setup-screen -->
+
+<!-- ════════════════════════════════════════════════════════════
+     AUTH SCREEN (Pattern lock)
+════════════════════════════════════════════════════════════ -->
+<div id="auth-screen" class="screen" style="flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1.5rem;padding:2rem">
+  <div style="text-align:center">
+    <div style="font-size:2rem;font-weight:800;background:linear-gradient(135deg,#6366f1,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.25rem">
+      SDT
+    </div>
+    <div id="auth-title" style="font-size:1.1rem;font-weight:700">Draw your pattern</div>
+  </div>
+  <canvas id="pattern-canvas" style="display:block"></canvas>
+  <div id="auth-message" class="auth-message"></div>
+  <button id="auth-reset-btn" class="auth-reset">Forgot pattern? Reset everything</button>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     DASHBOARD
+════════════════════════════════════════════════════════════ -->
+<div id="dashboard-screen" class="screen" style="flex-direction:column;min-height:100vh;position:relative">
+
+  <!-- Loading overlay for data fetches -->
+  <div id="loading-overlay" class="hidden" style="position:fixed;inset:0;z-index:400;background:rgba(15,23,42,.7);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- ── Header ── -->
+  <header class="app-header">
+    <div class="header-logo">SDT</div>
+
+    <!-- Stats chips -->
+    <div class="stats-bar">
+      <div class="stat-chip" title="Total tasks">
+        📋 <span class="num" id="stat-total">0</span>
+      </div>
+      <div class="stat-chip" title="Pending">
+        ⏳ <span class="num" id="stat-pending">0</span>
+      </div>
+      <div class="stat-chip urgent" title="Urgent">
+        🔴 <span class="num" id="stat-urgent">0</span>
+      </div>
+      <div class="stat-chip medium" title="Medium">
+        🟡 <span class="num" id="stat-medium">0</span>
+      </div>
+      <div class="stat-chip low" title="Low">
+        🟢 <span class="num" id="stat-low">0</span>
+      </div>
+      <div class="stat-chip done" title="Completed">
+        ✅ <span class="num" id="stat-done">0</span>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="header-actions">
+      <button id="sync-btn" class="sync-btn" title="Sync emails now">
+        <svg class="sync-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span class="hidden" style="display:none" id="sync-label">Sync</span>
+      </button>
+      <button id="settings-btn" class="btn-icon" title="Settings">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Search + Filters ── -->
+  <div class="controls-bar">
+    <div class="search-wrap">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      <input id="search-input" type="search" placeholder="Search tasks, clients, staff…">
+    </div>
+
+    <select id="filter-priority" class="filter-select">
+      <option value="all">All Priorities</option>
+      <option value="urgent">🔴 Urgent</option>
+      <option value="medium">🟡 Medium</option>
+      <option value="low">🟢 Low</option>
+    </select>
+
+    <select id="filter-assignee" class="filter-select">
+      <option value="all">All Staff</option>
+    </select>
+
+    <button id="add-task-btn" class="add-task-btn">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      Add Task
+    </button>
+  </div>
+
+  <!-- ── Client tabs ── -->
+  <div class="client-tabs-wrap">
+    <div id="client-tabs-scroll" class="tabs-scroll"></div>
+    <button id="tab-add-btn" class="tab-add-btn" title="Add client category">+</button>
+  </div>
+
+  <!-- ── Last synced label ── -->
+  <div style="padding:.3rem 1rem;font-size:.72rem;color:var(--text3);text-align:right" id="last-updated"></div>
+
+  <!-- ── Pending task list ── -->
+  <main class="main-content" id="task-list"></main>
+
+  <!-- ── Completed section ── -->
+  <div id="completed-section" class="completed-section">
+    <button id="completed-toggle" class="completed-toggle">
+      <span>Completed Tasks <span id="completed-count">(0)</span></span>
+      <svg class="chevron" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+      </svg>
+    </button>
+    <div id="completed-list" class="completed-list"></div>
+  </div>
+
+</div><!-- /dashboard-screen -->
+
+<!-- ════════════════════════════════════════════════════════════
+     ADD TASK MODAL
+════════════════════════════════════════════════════════════ -->
+<div id="add-task-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Add New Task</h2>
+      <button class="btn-icon" data-modal-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input id="new-task-title" type="text" placeholder="Brief description of the task">
+      </div>
+      <div class="form-group">
+        <label>Client</label>
+        <select id="new-task-client"></select>
+      </div>
+      <div class="form-group">
+        <label>New Client Name <span style="color:var(--text3)">(if not in list above)</span></label>
+        <input id="new-client-name" type="text" placeholder="e.g. Acme Corp">
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="new-task-priority">
+          <option value="medium">🟡 Medium</option>
+          <option value="urgent">🔴 Urgent</option>
+          <option value="low">🟢 Low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="new-task-assignee"></select>
+      </div>
+      <div class="form-group">
+        <label>Notes / Summary</label>
+        <textarea id="new-task-summary" rows="3" placeholder="Optional notes or context"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Cancel</button>
+      <button id="save-task-btn" class="btn btn-primary">Add Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SETTINGS MODAL
+════════════════════════════════════════════════════════════ -->
+<div id="settings-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚙️ Settings</h2>
+      <button class="btn-icon" data-modal-close>✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="settings-section">
+        <h3>Team Members</h3>
+        <div id="employee-list" class="employee-list"></div>
+        <div style="display:flex;gap:.5rem;margin-top:.75rem">
+          <input id="new-employee-name" type="text" placeholder="Employee name">
+          <button id="add-employee-btn" class="btn btn-primary btn-sm" style="white-space:nowrap">Add</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Email Sync</h3>
+        <div style="display:flex;flex-direction:column;gap:.6rem">
+          <button id="full-sync-btn" class="btn btn-secondary">
+            🔄 Force Full 30-Day Sync
+          </button>
+          <button id="refresh-data-btn" class="btn btn-secondary">
+            ↻ Refresh Data from GitHub
+          </button>
+          <p class="text-xs text-muted" style="margin-top:.25rem">
+            The AI processor runs automatically every 10 minutes via GitHub Actions.
+            Use "Force Full Sync" to re-read 30 days of emails if you think tasks are missing.
+          </p>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>Security</h3>
+        <button id="pattern-reset-modal-btn" class="pattern-reset-btn">
+          🔒 Reset Unlock Pattern
+        </button>
+        <p class="text-xs text-muted" style="margin-top:.5rem">
+          You will need to draw and confirm a new pattern.
+        </p>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" data-modal-close>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     TOAST CONTAINER
+════════════════════════════════════════════════════════════ -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Scripts -->
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/github-api.js"></script>
+<script src="assets/js/tasks.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

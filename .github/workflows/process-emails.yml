@@ -1,0 +1,60 @@
+name: Process Emails & Update Tasks
+
+on:
+  schedule:
+    # Every 10 minutes — NOTE: GitHub may delay scheduled jobs by 5-15 min under load.
+    # For private repos this consumes GitHub Actions minutes (~4000 min/month).
+    # Change to '*/30 * * * *' (every 30 min) to reduce usage on the free tier.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_full_sync:
+        description: "Force full 30-day email sync"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  process-emails:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Process emails and update tasks
+        env:
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FORCE_FULL_SYNC: ${{ github.event.inputs.force_full_sync || 'false' }}
+        run: python scripts/process_emails.py
+
+      - name: Commit and push updated data
+        run: |
+          git config --global user.name  "Task Tracker Bot"
+          git config --global user.email "tasktracker-bot@noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "ℹ No data changes — nothing to commit."
+          else
+            git commit -m "🤖 Auto-update tasks $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
