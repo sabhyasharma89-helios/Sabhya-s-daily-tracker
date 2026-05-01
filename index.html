@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ AUTH OVERLAY ═══════════════════════════════════════ -->
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">📋</span>
+      <h1 class="auth-title">Sabhya's Daily Tracker</h1>
+      <p class="auth-subtitle" id="auth-subtitle">Draw your pattern to unlock</p>
+    </div>
+
+    <canvas id="pattern-canvas" width="300" height="300"></canvas>
+
+    <p class="auth-hint" id="auth-hint">Connect at least 4 dots</p>
+    <p class="auth-error" id="auth-error"></p>
+
+    <!-- Setup mode: shown only on first run or during setup -->
+    <div id="setup-confirm-wrap" style="display:none;">
+      <p class="auth-confirm-msg">Draw the same pattern again to confirm</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ SETUP WIZARD ════════════════════════════════════════ -->
+<div id="setup-wizard" class="modal-backdrop" style="display:none;">
+  <div class="modal setup-modal">
+    <div class="setup-step" id="step-welcome">
+      <div class="setup-icon">🚀</div>
+      <h2>Welcome to Your Daily Tracker</h2>
+      <p>This tracker automatically pulls tasks from your Gmail and Google ecosystem. Let's get you set up in 3 quick steps.</p>
+      <button class="btn btn-primary btn-full" onclick="App.wizard.next()">Get Started</button>
+    </div>
+
+    <div class="setup-step" id="step-github" style="display:none;">
+      <div class="setup-icon">⚙️</div>
+      <h2>Step 1: GitHub Configuration</h2>
+      <p>Enter your GitHub repository details so the tracker can sync data.</p>
+      <div class="form-group">
+        <label>GitHub Owner / Username</label>
+        <input type="text" id="cfg-gh-owner" placeholder="e.g. sabhyasharma89-helios" />
+      </div>
+      <div class="form-group">
+        <label>Repository Name</label>
+        <input type="text" id="cfg-gh-repo" placeholder="e.g. sabhya-s-daily-tracker" />
+      </div>
+      <div class="form-group">
+        <label>Branch</label>
+        <input type="text" id="cfg-gh-branch" placeholder="main" value="main" />
+      </div>
+      <div class="form-group">
+        <label>GitHub Personal Access Token <span class="badge-info">needs repo write scope</span></label>
+        <input type="password" id="cfg-gh-token" placeholder="ghp_..." />
+        <small>Stored encrypted with your pattern. Never sent anywhere except GitHub API.</small>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="App.wizard.back()">Back</button>
+        <button class="btn btn-primary" onclick="App.wizard.saveGitHub()">Next</button>
+      </div>
+    </div>
+
+    <div class="setup-step" id="step-employees" style="display:none;">
+      <div class="setup-icon">👥</div>
+      <h2>Step 2: Team Members</h2>
+      <p>Add your team members so you can assign tasks to them. You can add more later.</p>
+      <div id="employee-list-setup"></div>
+      <div class="form-group add-employee-form">
+        <input type="text" id="emp-name-input" placeholder="Name" />
+        <input type="email" id="emp-email-input" placeholder="Email (optional)" />
+        <button class="btn btn-secondary btn-sm" onclick="App.wizard.addEmployee()">+ Add</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="App.wizard.back()">Back</button>
+        <button class="btn btn-primary" onclick="App.wizard.next()">Next</button>
+      </div>
+    </div>
+
+    <div class="setup-step" id="step-done" style="display:none;">
+      <div class="setup-icon">✅</div>
+      <h2>All Set!</h2>
+      <p>Your tracker is configured. The GitHub Actions workflow will start reading your emails automatically.</p>
+      <div class="setup-checklist">
+        <div class="checklist-item">
+          <span class="checklist-icon">✓</span>
+          <span>GitHub repository connected</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-icon">📧</span>
+          <span>Add <code>GMAIL_TOKEN</code> and <code>ANTHROPIC_API_KEY</code> to your GitHub Secrets</span>
+        </div>
+        <div class="checklist-item">
+          <span class="checklist-icon">⏱</span>
+          <span>Emails will be processed every 10 minutes automatically</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="App.wizard.finish()">Open Dashboard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ MAIN APP ════════════════════════════════════════════ -->
+<div id="app" style="display:none;">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <button class="btn-icon" id="sidebar-toggle" onclick="App.ui.toggleSidebar()" title="Menu">☰</button>
+      <span class="app-brand">📋 Daily Tracker</span>
+    </div>
+    <div class="header-search">
+      <input type="text" id="search-input" placeholder="Search tasks, clients, employees…" oninput="App.ui.onSearch(this.value)" />
+      <span class="search-icon">🔍</span>
+    </div>
+    <div class="header-right">
+      <button class="btn-icon" id="sync-btn" onclick="App.sync.manualSync()" title="Sync now">🔄</button>
+      <span class="sync-status" id="sync-status">–</span>
+      <button class="btn-icon" onclick="App.ui.openSettings()" title="Settings">⚙️</button>
+      <button class="btn-icon" onclick="App.lock()" title="Lock">🔒</button>
+    </div>
+  </header>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar">
+    <div class="filter-chips">
+      <button class="filter-chip active" data-filter="all" onclick="App.ui.setFilter('all', this)">All</button>
+      <button class="filter-chip" data-filter="pending" onclick="App.ui.setFilter('pending', this)">Pending</button>
+      <button class="filter-chip" data-filter="urgent" onclick="App.ui.setFilter('urgent', this)">🔴 Urgent</button>
+      <button class="filter-chip" data-filter="medium" onclick="App.ui.setFilter('medium', this)">🟡 Medium</button>
+      <button class="filter-chip" data-filter="low" onclick="App.ui.setFilter('low', this)">🟢 Low</button>
+      <button class="filter-chip" data-filter="completed" onclick="App.ui.setFilter('completed', this)">✅ Completed</button>
+    </div>
+    <div class="filter-employee">
+      <select id="employee-filter" onchange="App.ui.setEmployeeFilter(this.value)">
+        <option value="">All Assignees</option>
+      </select>
+    </div>
+    <div class="filter-client">
+      <select id="client-filter" onchange="App.ui.setClientFilter(this.value)">
+        <option value="">All Clients</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- STATS BAR -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card stat-total">
+      <span class="stat-number" id="stat-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card stat-pending">
+      <span class="stat-number" id="stat-pending">0</span>
+      <span class="stat-label">Pending</span>
+    </div>
+    <div class="stat-card stat-completed">
+      <span class="stat-number" id="stat-completed">0</span>
+      <span class="stat-label">Completed</span>
+    </div>
+    <div class="stat-card stat-urgent">
+      <span class="stat-number" id="stat-urgent">0</span>
+      <span class="stat-label">Urgent</span>
+    </div>
+    <div class="stat-card stat-medium">
+      <span class="stat-number" id="stat-medium">0</span>
+      <span class="stat-label">Medium</span>
+    </div>
+    <div class="stat-card stat-low">
+      <span class="stat-number" id="stat-low">0</span>
+      <span class="stat-label">Low</span>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main class="app-main" id="app-main">
+    <div id="no-tasks-msg" class="empty-state" style="display:none;">
+      <div class="empty-icon">📭</div>
+      <h3>No tasks yet</h3>
+      <p>The GitHub Actions workflow will populate tasks from your Gmail every 10 minutes.<br>
+         Make sure you've added <code>GMAIL_TOKEN</code> and <code>ANTHROPIC_API_KEY</code> to your repository secrets.</p>
+      <button class="btn btn-primary" onclick="App.sync.manualSync()">🔄 Sync Now</button>
+      <button class="btn btn-secondary" style="margin-left:8px;" onclick="App.ui.openAddTask()">+ Add Task Manually</button>
+    </div>
+
+    <!-- Client sections rendered here by ui.js -->
+    <div id="client-container"></div>
+
+    <!-- Completed section (collapsed by default) -->
+    <div id="completed-section" class="completed-section" style="display:none;">
+      <div class="completed-header" onclick="App.ui.toggleCompleted()">
+        <span class="completed-title">✅ Completed Tasks</span>
+        <span class="completed-count badge" id="completed-count-badge">0</span>
+        <span class="completed-toggle" id="completed-chevron">▶</span>
+      </div>
+      <div id="completed-list" class="completed-list collapsed"></div>
+    </div>
+  </main>
+
+  <!-- FAB: Add Task -->
+  <button class="fab" onclick="App.ui.openAddTask()" title="Add new task">+</button>
+
+</div><!-- end #app -->
+
+<!-- ═══════════════════════════════════════ MODALS ══════════════════════════════════════════════ -->
+
+<!-- Add / Edit Task Modal -->
+<div id="task-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal task-modal">
+    <div class="modal-header">
+      <h3 id="task-modal-title">Add Task</h3>
+      <button class="btn-icon modal-close" onclick="App.ui.closeTaskModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="task-modal-id" />
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="task-title-input" placeholder="Describe the task…" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Client Name *</label>
+          <input type="text" id="task-client-input" placeholder="Client / Company" list="client-datalist" />
+          <datalist id="client-datalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="task-priority-input">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium" selected>🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Assign To</label>
+        <select id="task-assignee-input">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Summary / Notes</label>
+        <textarea id="task-summary-input" rows="4" placeholder="Task description, notes…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Actionables (one per line)</label>
+        <textarea id="task-actionables-input" rows="3" placeholder="Send proposal&#10;Schedule meeting…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Next Step Responsible</label>
+        <input type="text" id="task-nextstep-input" placeholder="Who acts next?" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="App.ui.closeTaskModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="App.tasks.saveFromModal()">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Task Detail Modal -->
+<div id="detail-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal detail-modal">
+    <div class="modal-header">
+      <div class="detail-header-left">
+        <span class="priority-badge" id="detail-priority-badge"></span>
+        <h3 id="detail-title"></h3>
+      </div>
+      <button class="btn-icon modal-close" onclick="App.ui.closeDetailModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-meta">
+        <span class="detail-client" id="detail-client"></span>
+        <span class="detail-assignee" id="detail-assignee"></span>
+        <span class="detail-date" id="detail-date"></span>
+      </div>
+
+      <div class="detail-section">
+        <h4>📝 Summary</h4>
+        <p id="detail-summary"></p>
+      </div>
+
+      <div class="detail-section" id="detail-actionables-section">
+        <h4>✅ Actionables</h4>
+        <ul id="detail-actionables"></ul>
+      </div>
+
+      <div class="detail-section">
+        <h4>👤 Next Step</h4>
+        <p id="detail-nextstep"></p>
+      </div>
+
+      <div class="detail-section" id="detail-thread-section" style="display:none;">
+        <h4>📧 Email Thread</h4>
+        <div id="detail-thread-list"></div>
+      </div>
+    </div>
+    <div class="modal-footer detail-footer">
+      <div class="detail-actions-left">
+        <button class="btn btn-sm btn-secondary" onclick="App.tasks.editCurrent()">✏️ Edit</button>
+        <button class="btn btn-sm" id="detail-complete-btn" onclick="App.tasks.toggleCompleteFromDetail()"></button>
+      </div>
+      <div class="detail-actions-right">
+        <select id="detail-priority-select" onchange="App.tasks.changePriorityFromDetail(this.value)" title="Change priority">
+          <option value="urgent">🔴 Urgent</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+        <select id="detail-assignee-select" onchange="App.tasks.changeAssigneeFromDetail(this.value)" title="Assign to">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="modal-backdrop" style="display:none;">
+  <div class="modal settings-modal">
+    <div class="modal-header">
+      <h3>⚙️ Settings</h3>
+      <button class="btn-icon modal-close" onclick="App.ui.closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h4>GitHub Sync</h4>
+        <div class="form-group">
+          <label>Owner</label>
+          <input type="text" id="set-gh-owner" />
+        </div>
+        <div class="form-group">
+          <label>Repository</label>
+          <input type="text" id="set-gh-repo" />
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="set-gh-branch" />
+        </div>
+        <div class="form-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="set-gh-token" placeholder="ghp_…" />
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Team Members</h4>
+        <div id="employee-list-settings"></div>
+        <div class="form-group add-employee-form">
+          <input type="text" id="set-emp-name" placeholder="Name" />
+          <input type="email" id="set-emp-email" placeholder="Email" />
+          <button class="btn btn-secondary btn-sm" onclick="App.employees.addFromSettings()">+ Add</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Security</h4>
+        <button class="btn btn-secondary" onclick="App.auth.startChangePattern()">🔑 Change Pattern</button>
+      </div>
+
+      <div class="settings-section">
+        <h4>Data</h4>
+        <p class="settings-info" id="settings-last-sync"></p>
+        <p class="settings-info" id="settings-email-count"></p>
+        <button class="btn btn-secondary" onclick="App.sync.manualSync()">🔄 Force Sync Now</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="App.ui.closeSettings()">Cancel</button>
+      <button class="btn btn-primary" onclick="App.settings.save()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast" style="display:none;"></div>
+
+<!-- Scripts -->
+<script src="js/auth.js"></script>
+<script src="js/db.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
