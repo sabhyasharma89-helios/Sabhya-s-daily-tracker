@@ -1,0 +1,59 @@
+name: Process Emails & Update Tasks
+
+on:
+  schedule:
+    # Every 10 minutes (GitHub may delay up to 15 min during high load)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:          # Allow manual trigger from GitHub UI
+    inputs:
+      force_first_run:
+        description: 'Re-process last 30 days (force first-run mode)'
+        required: false
+        default: 'false'
+
+jobs:
+  process-emails:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8          # Safety cap – well under the 10-min schedule gap
+
+    permissions:
+      contents: write           # Needed to commit updated data files
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Process emails with Claude
+        env:
+          GMAIL_CREDENTIALS: ${{ secrets.GMAIL_CREDENTIALS }}
+          GMAIL_TOKEN:        ${{ secrets.GMAIL_TOKEN }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN:       ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:  ${{ github.repository }}
+          FORCE_FIRST_RUN:    ${{ github.event.inputs.force_first_run }}
+        run: python scripts/process_emails.py
+
+      - name: Commit updated data files
+        run: |
+          git config --global user.name  "Daily Tracker Bot"
+          git config --global user.email "bot@daily-tracker.local"
+          git add data/tasks.json data/email_state.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: auto-update tasks $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
+            git push origin ${{ github.ref_name }}
+          fi
