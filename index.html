@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sabhya's Daily Task Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ───────────────── PATTERN LOCK SCREEN ───────────────── -->
+<div id="patternScreen" class="pattern-screen">
+  <div class="pattern-container">
+    <div class="app-logo">📋</div>
+    <h1 class="app-title">Daily Tracker</h1>
+    <p id="patternMessage" class="pattern-msg">Draw your unlock pattern</p>
+    <div class="pattern-wrapper">
+      <canvas id="patternCanvas"></canvas>
+      <div id="patternDots" class="pattern-dots"></div>
+    </div>
+    <div id="patternStatus" class="pattern-status"></div>
+    <button id="clearPatternBtn" class="btn-ghost" style="display:none">Clear</button>
+    <p id="patternSetupHint" class="hint-text"></p>
+  </div>
+</div>
+
+<!-- ───────────────── MAIN DASHBOARD ───────────────── -->
+<div id="dashboard" class="dashboard hidden">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="header-left">
+        <span class="logo-icon">📋</span>
+        <h1 class="header-title">Daily Tracker</h1>
+      </div>
+      <div class="header-right">
+        <span id="lastUpdatedLabel" class="last-updated"></span>
+        <button class="icon-btn" id="refreshBtn" title="Refresh data">⟳</button>
+        <button class="icon-btn" id="addTaskGlobalBtn" title="Add task">＋</button>
+        <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+        <button class="icon-btn" id="lockBtn" title="Lock screen">🔒</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar">
+    <div class="stat-chip total"    onclick="applyFilter('all')">
+      <span class="stat-num" id="statTotal">0</span>
+      <span class="stat-lbl">Total</span>
+    </div>
+    <div class="stat-chip pending"  onclick="applyFilter('pending')">
+      <span class="stat-num" id="statPending">0</span>
+      <span class="stat-lbl">Pending</span>
+    </div>
+    <div class="stat-chip urgent"   onclick="applyFilter('urgent')">
+      <span class="stat-num" id="statUrgent">0</span>
+      <span class="stat-lbl">Urgent</span>
+    </div>
+    <div class="stat-chip medium"   onclick="applyFilter('medium')">
+      <span class="stat-num" id="statMedium">0</span>
+      <span class="stat-lbl">Medium</span>
+    </div>
+    <div class="stat-chip low"      onclick="applyFilter('low')">
+      <span class="stat-num" id="statLow">0</span>
+      <span class="stat-lbl">Low</span>
+    </div>
+    <div class="stat-chip completed" onclick="applyFilter('completed')">
+      <span class="stat-num" id="statCompleted">0</span>
+      <span class="stat-lbl">Done</span>
+    </div>
+  </section>
+
+  <!-- Search & Filter Bar -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search tasks, clients, employees…" />
+      <button id="clearSearchBtn" class="clear-search hidden">✕</button>
+    </div>
+    <div class="filter-chips">
+      <button class="fchip active" data-filter="all">All</button>
+      <button class="fchip" data-filter="pending">Pending</button>
+      <button class="fchip" data-filter="completed">Done</button>
+      <button class="fchip" data-filter="urgent">🔴 Urgent</button>
+      <button class="fchip" data-filter="medium">🟡 Medium</button>
+      <button class="fchip" data-filter="low">🟢 Low</button>
+    </div>
+    <select id="sortBy" class="sort-select">
+      <option value="priority">Priority ↓</option>
+      <option value="date">Newest</option>
+      <option value="client">Client A-Z</option>
+      <option value="employee">Assignee</option>
+    </select>
+  </div>
+
+  <!-- Employee filter row -->
+  <div class="employee-filter-bar" id="employeeFilterBar" style="display:none">
+    <span class="efb-label">Filter by assignee:</span>
+    <div id="employeeFilterChips" class="efb-chips"></div>
+    <button class="btn-ghost" onclick="clearEmployeeFilter()">Clear</button>
+  </div>
+
+  <!-- Client Sections -->
+  <main class="main-content" id="mainContent">
+    <div id="clientSections" class="client-sections"></div>
+
+    <!-- Completed Section (collapsed by default) -->
+    <div class="completed-section" id="completedSection">
+      <div class="section-header completed-header" id="completedToggleBtn" onclick="toggleCompleted()">
+        <div class="sec-title-left">
+          <span class="sec-icon">✓</span>
+          <span>Completed Tasks</span>
+          <span class="badge" id="completedCount">0</span>
+        </div>
+        <span class="chevron" id="completedChevron">▶</span>
+      </div>
+      <div id="completedTasksContainer" class="completed-tasks-container hidden"></div>
+    </div>
+
+    <div id="emptyState" class="empty-state hidden">
+      <div class="empty-icon">📭</div>
+      <p>No tasks found. Tasks will appear here as emails are processed.</p>
+      <p class="hint-text">Last sync runs every 10 minutes via GitHub Actions.</p>
+    </div>
+  </main>
+</div>
+
+<!-- ───────────────── TASK DETAIL MODAL ───────────────── -->
+<div id="taskModal" class="modal-backdrop hidden" onclick="handleModalBackdropClick(event,'taskModal')">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="modalTaskTitle">Task</h2>
+      <button class="btn-close" onclick="closeModal('taskModal')">✕</button>
+    </div>
+    <div class="modal-body" id="taskModalBody"></div>
+  </div>
+</div>
+
+<!-- ───────────────── ADD / EDIT TASK MODAL ───────────────── -->
+<div id="editModal" class="modal-backdrop hidden" onclick="handleModalBackdropClick(event,'editModal')">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2 id="editModalTitle">Add Task</h2>
+      <button class="btn-close" onclick="closeModal('editModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="taskForm" onsubmit="saveTask(event)">
+        <div class="form-group">
+          <label>Client Name *</label>
+          <input type="text" id="fClient" required autocomplete="off" list="clientDatalist" />
+          <datalist id="clientDatalist"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Task Title *</label>
+          <input type="text" id="fTitle" required />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="fDescription" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="fPriority">
+              <option value="urgent">🔴 Urgent</option>
+              <option value="medium" selected>🟡 Medium</option>
+              <option value="low">🟢 Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Assign To</label>
+            <input type="text" id="fAssignee" list="employeeDatalist" autocomplete="off" />
+            <datalist id="employeeDatalist"></datalist>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Action Items</label>
+          <div id="actionItemsContainer"></div>
+          <button type="button" class="btn-ghost add-action-btn" onclick="addActionItemRow()">＋ Add action item</button>
+        </div>
+        <input type="hidden" id="fTaskId" value="" />
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+          <button type="submit" class="btn-primary">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── SETTINGS MODAL ───────────────── -->
+<div id="settingsModal" class="modal-backdrop hidden" onclick="handleModalBackdropClick(event,'settingsModal')">
+  <div class="modal-box" role="dialog" aria-modal="true">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="btn-close" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <section class="settings-section">
+        <h3>Security</h3>
+        <button class="btn-secondary" onclick="initiatePatternChange()">🔑 Change Unlock Pattern</button>
+      </section>
+      <section class="settings-section">
+        <h3>Employees</h3>
+        <div id="employeeListSettings"></div>
+        <div class="add-employee-row">
+          <input type="text" id="newEmployeeInput" placeholder="Employee name" />
+          <button class="btn-primary" onclick="addEmployee()">Add</button>
+        </div>
+      </section>
+      <section class="settings-section">
+        <h3>Data</h3>
+        <button class="btn-secondary" onclick="exportData()">⬇ Export Tasks (JSON)</button>
+        <p class="hint-text">Data is stored in the GitHub repository and is never deleted.</p>
+      </section>
+      <section class="settings-section">
+        <h3>Sync Status</h3>
+        <div id="syncStatus" class="sync-status-box">Loading…</div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="pattern-auth.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
