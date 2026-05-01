@@ -1,0 +1,16 @@
+{
+  "name": "Sabhya's Task Tracker",
+  "short_name": "TaskTracker",
+  "description": "Email-driven task tracker with AI analysis",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%236366f1'/><path d='M30 50h40M50 30v40' stroke='white' stroke-width='8' stroke-linecap='round'/></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

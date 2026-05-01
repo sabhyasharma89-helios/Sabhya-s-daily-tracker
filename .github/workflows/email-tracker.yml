@@ -1,0 +1,66 @@
+name: Email Task Tracker
+
+on:
+  schedule:
+    # Run every 10 minutes
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_full_scan:
+        description: 'Force a full 30-day rescan (resets last_email_check)'
+        required: false
+        default: 'false'
+
+jobs:
+  process-emails:
+    name: Process Emails & Update Tasks
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Force full scan (optional)
+        if: github.event.inputs.force_full_scan == 'true'
+        run: |
+          python - <<'EOF'
+          import json, pathlib
+          p = pathlib.Path('data/tasks.json')
+          if p.exists():
+              db = json.loads(p.read_text())
+              db['meta']['first_run_complete'] = False
+              db['meta']['last_email_check']   = ''
+              p.write_text(json.dumps(db, indent=2))
+              print('Reset: will do a full 30-day scan.')
+          EOF
+
+      - name: Process emails
+        env:
+          GMAIL_TOKEN_JSON:  ${{ secrets.GMAIL_TOKEN_JSON }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python scripts/process_emails.py
+
+      - name: Commit and push updated tasks
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/tasks.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: update tasks [$(date -u '+%Y-%m-%d %H:%M UTC')]"
+            git push origin main
+          fi
