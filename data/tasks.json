@@ -1,0 +1,13 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "lastUpdated": null,
+    "lastEmailFetched": null,
+    "totalEmailsProcessed": 0,
+    "initialized": false
+  },
+  "clients": {},
+  "tasks": [],
+  "employees": [],
+  "syncLog": []
+}

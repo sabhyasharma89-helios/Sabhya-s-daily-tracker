@@ -1,0 +1,22 @@
+{
+  "name": "sabhya-tracker-processor",
+  "version": "1.0.0",
+  "description": "Email processor for Sabhya's Daily Tracker",
+  "main": "process-emails.js",
+  "scripts": {
+    "process": "node process-emails.js",
+    "setup": "node setup-oauth.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@octokit/rest": "^21.0.0",
+    "googleapis": "^144.0.0"
+  },
+  "devDependencies": {
+    "open": "^10.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}

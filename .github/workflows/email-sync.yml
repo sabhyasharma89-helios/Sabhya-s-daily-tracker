@@ -1,0 +1,93 @@
+name: Email Sync — Process New Emails
+
+on:
+  # Run every 10 minutes
+  schedule:
+    - cron: '*/10 * * * *'
+
+  # Allow manual trigger from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      force_full_sync:
+        description: 'Force full re-sync (re-read last 30 days)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: email-sync
+  cancel-in-progress: false   # Never cancel a running sync
+
+jobs:
+  process-emails:
+    name: Fetch & Analyse Emails
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: write   # Needed to commit tasks.json
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/package.json
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm ci --prefer-offline
+
+      - name: Force full sync (optional)
+        if: ${{ inputs.force_full_sync == 'true' }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const p = 'data/tasks.json';
+            if (fs.existsSync(p)) {
+              const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+              d.metadata.lastEmailFetched = null;
+              d.metadata.initialized = false;
+              fs.writeFileSync(p, JSON.stringify(d, null, 2));
+              console.log('Reset lastEmailFetched for full re-sync');
+            }
+          "
+
+      - name: Process emails
+        working-directory: scripts
+        env:
+          GMAIL_CLIENT_ID:     ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          ANTHROPIC_API_KEY:   ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN:        ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:   ${{ github.repository }}
+          GITHUB_REF_NAME:     ${{ github.ref_name }}
+        run: node process-emails.js
+
+      - name: Commit updated tasks.json
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/tasks.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit — tasks.json is up to date."
+          else
+            TASK_COUNT=$(node -e "const d=require('./data/tasks.json'); console.log(d.tasks.length)")
+            git commit -m "sync: update tasks from email processor
+
+Tasks in database: ${TASK_COUNT}
+Timestamp: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+Triggered by: ${{ github.event_name }}"
+            git push origin main
+            echo "Committed and pushed tasks.json"
+          fi
