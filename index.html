@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       INITIAL SETUP OVERLAY  (first-time run)
+       ═══════════════════════════════════════════ -->
+  <div id="setup-overlay" class="auth-overlay hidden">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="logo-icon">⚙️</span>
+        <h1>Welcome to Daily Tracker</h1>
+      </div>
+      <p class="setup-desc">
+        To read and save your tasks, enter a GitHub Personal Access Token
+        with <strong>contents: write</strong> permission on this repository.
+      </p>
+      <div class="form-group" style="width:100%;text-align:left">
+        <label>GitHub Personal Access Token</label>
+        <input type="password" id="setup-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+        <small>
+          Create one at GitHub → Settings → Developer settings →
+          Fine-grained tokens → restrict to this repo with <code>contents: write</code>.
+        </small>
+      </div>
+      <button class="btn-primary" id="setup-continue-btn" style="width:100%">Continue →</button>
+      <p class="setup-skip">
+        <a href="#" id="setup-offline-btn">Use offline / demo mode (no sync)</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PATTERN LOCK OVERLAY
+       ═══════════════════════════════════════════ -->
+  <div id="auth-overlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="logo-icon">📋</span>
+        <h1>Daily Tracker</h1>
+      </div>
+      <p class="auth-message" id="auth-message">Draw your pattern to unlock</p>
+      <canvas id="pattern-canvas" width="260" height="260"></canvas>
+      <p class="auth-hint" id="auth-hint">Connect at least 4 dots</p>
+      <div class="auth-actions">
+        <button class="btn-ghost" id="auth-clear-btn">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       MAIN APP
+       ═══════════════════════════════════════════ -->
+  <div id="app" class="app hidden">
+
+    <!-- ── Header ── -->
+    <header class="app-header">
+      <div class="header-left">
+        <span class="logo-sm">📋</span>
+        <h1 class="app-title">Daily Tracker</h1>
+      </div>
+      <div class="header-right">
+        <div class="sync-status">
+          <span class="sync-dot" id="sync-dot"></span>
+          <span id="sync-text">Loading…</span>
+        </div>
+        <button class="btn-icon" id="refresh-btn" title="Refresh now">↻</button>
+        <button class="btn-icon" id="settings-btn" title="Settings">⚙</button>
+      </div>
+    </header>
+
+    <!-- ── Stats Bar ── -->
+    <section class="stats-bar" aria-label="Task statistics">
+      <div class="stat-card">
+        <span class="stat-label">Total</span>
+        <span class="stat-value" id="stat-total">0</span>
+      </div>
+      <div class="stat-card stat-urgent">
+        <span class="stat-label">Urgent</span>
+        <span class="stat-value" id="stat-urgent">0</span>
+      </div>
+      <div class="stat-card stat-medium">
+        <span class="stat-label">Medium</span>
+        <span class="stat-value" id="stat-medium">0</span>
+      </div>
+      <div class="stat-card stat-low">
+        <span class="stat-label">Low</span>
+        <span class="stat-value" id="stat-low">0</span>
+      </div>
+      <div class="stat-card stat-pending">
+        <span class="stat-label">Pending</span>
+        <span class="stat-value" id="stat-pending">0</span>
+      </div>
+      <div class="stat-card stat-completed">
+        <span class="stat-label">Done</span>
+        <span class="stat-value" id="stat-completed">0</span>
+      </div>
+    </section>
+
+    <!-- ── Filter / Search Bar ── -->
+    <section class="filter-bar" aria-label="Filters">
+      <div class="filter-search">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          type="search" id="search-input"
+          placeholder="Search tasks, clients, employees…"
+          aria-label="Search tasks">
+      </div>
+      <div class="filter-controls">
+        <select id="filter-priority" aria-label="Filter by priority">
+          <option value="all">All Priorities</option>
+          <option value="urgent">🔴 Urgent</option>
+          <option value="medium">🟡 Medium</option>
+          <option value="low">🟢 Low</option>
+        </select>
+        <select id="filter-status" aria-label="Filter by status">
+          <option value="pending">Pending</option>
+          <option value="all">All Status</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select id="filter-assignee" aria-label="Filter by assignee">
+          <option value="all">All Employees</option>
+        </select>
+        <select id="filter-client" aria-label="Filter by client">
+          <option value="all">All Clients</option>
+        </select>
+        <button class="btn-primary" id="add-task-btn">+ Add Task</button>
+      </div>
+    </section>
+
+    <!-- ── Client Task Cards ── -->
+    <main class="clients-section" id="clients-section" aria-label="Task list">
+      <div class="empty-state hidden" id="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>No tasks yet</h3>
+        <p>
+          Tasks are created automatically from your emails every 10 minutes
+          once the GitHub Action is configured.<br>
+          You can also add tasks manually using the <strong>+ Add Task</strong> button.
+        </p>
+      </div>
+    </main>
+
+    <!-- ── Completed Tasks (collapsed by default) ── -->
+    <section class="completed-section" aria-label="Completed tasks">
+      <div class="completed-header" id="completed-toggle" role="button" tabindex="0"
+           aria-expanded="false">
+        <span>✅ Completed Tasks</span>
+        <span class="completed-count badge" id="completed-count">0</span>
+        <span class="toggle-icon" id="completed-chevron" aria-hidden="true">▼</span>
+      </div>
+      <div id="completed-list" class="completed-list collapsed" aria-hidden="true">
+      </div>
+    </section>
+
+  </div><!-- #app -->
+
+  <!-- ═══════════════════════════════════════════
+       ADD / EDIT TASK MODAL
+       ═══════════════════════════════════════════ -->
+  <div id="form-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="form-modal-title">
+    <div class="modal-overlay" onclick="App.closeModal('form-modal')"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="form-modal-title">Add Task</h2>
+        <button class="btn-icon" onclick="App.closeModal('form-modal')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="task-form" novalidate>
+          <input type="hidden" id="form-task-id">
+
+          <div class="form-group">
+            <label for="form-title">Title *</label>
+            <input type="text" id="form-title" required placeholder="Short, actionable task title">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="form-client">Client</label>
+              <select id="form-client">
+                <option value="">Select client</option>
+                <option value="__new__">+ New client…</option>
+              </select>
+              <input type="text" id="form-client-new" class="hidden"
+                     placeholder="Enter new client name" style="margin-top:.35rem">
+            </div>
+            <div class="form-group">
+              <label for="form-priority">Priority</label>
+              <select id="form-priority">
+                <option value="urgent">🔴 Urgent</option>
+                <option value="medium" selected>🟡 Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-description">Description</label>
+            <textarea id="form-description" rows="3"
+                      placeholder="What needs to be done?"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="form-assignee">Assign to</label>
+            <select id="form-assignee">
+              <option value="">Unassigned</option>
+              <option value="__new__">+ New employee…</option>
+            </select>
+            <input type="text" id="form-assignee-new" class="hidden"
+                   placeholder="Employee name" style="margin-top:.35rem">
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-ghost" onclick="App.closeModal('form-modal')">Cancel</button>
+            <button type="submit" class="btn-primary">Save Task</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       SETTINGS MODAL
+       ═══════════════════════════════════════════ -->
+  <div id="settings-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="modal-overlay" onclick="App.closeModal('settings-modal')"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="settings-modal-title">Settings</h2>
+        <button class="btn-icon" onclick="App.closeModal('settings-modal')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <div class="settings-section">
+          <h3>GitHub Integration</h3>
+          <div class="form-group">
+            <label>Personal Access Token</label>
+            <div class="input-row">
+              <input type="password" id="settings-token" placeholder="ghp_xxxxxxxxxxxx"
+                     autocomplete="off">
+              <button class="btn-sm" id="settings-token-save">Save</button>
+            </div>
+            <small>
+              Needs <code>contents: write</code> on
+              <code>sabhyasharma89-helios/sabhya-s-daily-tracker</code>.
+            </small>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Security</h3>
+          <button class="btn-ghost btn-full" id="reset-pattern-btn"
+                  style="width:100%;display:flex;justify-content:center">
+            🔒 Reset Pattern Lock
+          </button>
+        </div>
+
+        <div class="settings-section">
+          <h3>Email Sync</h3>
+          <p class="text-muted" style="font-size:.82rem">
+            Emails are processed automatically via GitHub Actions every 10 minutes.<br>
+            Last sync: <strong id="settings-last-sync">–</strong>
+          </p>
+          <small>
+            Required GitHub Secrets: <code>ANTHROPIC_API_KEY</code>,
+            <code>GMAIL_CLIENT_ID</code>, <code>GMAIL_CLIENT_SECRET</code>,
+            <code>GMAIL_REFRESH_TOKEN</code>.
+          </small>
+        </div>
+
+        <div class="settings-section">
+          <h3>About</h3>
+          <p class="text-muted" style="font-size:.82rem">
+            Sabhya's Daily Tracker v1.0 — powered by Claude AI &amp; GitHub Actions.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast"></div>
+
+  <!-- Scripts (order matters) -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/github-api.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
