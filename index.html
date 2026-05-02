@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ PATTERN LOCK OVERLAY ═══ -->
+<div id="patternOverlay" class="pattern-overlay">
+  <div class="pattern-container">
+    <div class="pattern-logo">
+      <div class="logo-icon">ST</div>
+      <h1>Sabhya's Tracker</h1>
+      <p id="patternInstruction">Draw your pattern to unlock</p>
+    </div>
+
+    <div class="pattern-grid-wrapper">
+      <canvas id="patternCanvas" width="280" height="280"></canvas>
+      <div class="pattern-dots" id="patternDots"></div>
+    </div>
+
+    <div class="pattern-feedback" id="patternFeedback"></div>
+
+    <div class="pattern-actions">
+      <button class="btn-ghost" id="patternForgotBtn" style="display:none">Forgot pattern? Reset</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ FIRST SETUP WIZARD ═══ -->
+<div id="setupWizard" class="modal-overlay" style="display:none">
+  <div class="modal setup-modal">
+    <div class="setup-header">
+      <div class="logo-icon large">ST</div>
+      <h2>Welcome to Sabhya's Tracker</h2>
+      <p>Let's get everything configured</p>
+    </div>
+
+    <div class="setup-steps">
+      <!-- Step 1: Set Pattern -->
+      <div class="setup-step active" id="setupStep1">
+        <div class="step-number">1 / 3</div>
+        <h3>Set Your Pattern</h3>
+        <p>Draw a pattern with at least 4 dots. You'll need this every time you open the tracker.</p>
+        <div class="pattern-grid-wrapper small">
+          <canvas id="setupCanvas" width="240" height="240"></canvas>
+          <div class="pattern-dots" id="setupDots"></div>
+        </div>
+        <div class="pattern-feedback" id="setupFeedback">Draw your pattern (min 4 dots)</div>
+        <div id="setupStep1Confirm" style="display:none">
+          <p class="confirm-text">Confirm your pattern</p>
+          <div class="pattern-grid-wrapper small">
+            <canvas id="setupCanvasConfirm" width="240" height="240"></canvas>
+            <div class="pattern-dots" id="setupDotsConfirm"></div>
+          </div>
+          <div class="pattern-feedback" id="setupFeedbackConfirm">Redraw to confirm</div>
+        </div>
+        <button class="btn-primary" id="setupStep1Next" disabled>Next</button>
+      </div>
+
+      <!-- Step 2: GitHub Config -->
+      <div class="setup-step" id="setupStep2">
+        <div class="step-number">2 / 3</div>
+        <h3>GitHub Configuration</h3>
+        <p>This allows saving your task modifications across devices. Create a Personal Access Token with <strong>repo</strong> scope at <em>github.com → Settings → Developer settings → PAT</em>.</p>
+        <div class="form-group">
+          <label>GitHub Repository Owner</label>
+          <input type="text" id="cfgOwner" placeholder="e.g. sabhyasharma89-helios" />
+        </div>
+        <div class="form-group">
+          <label>GitHub Repository Name</label>
+          <input type="text" id="cfgRepo" placeholder="e.g. sabhya-s-daily-tracker" />
+        </div>
+        <div class="form-group">
+          <label>GitHub Personal Access Token (optional)</label>
+          <input type="password" id="cfgToken" placeholder="ghp_xxxxxxxxxxxx" />
+          <small>Stored locally. Used to save task changes across devices.</small>
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="cfgBranch" placeholder="main" value="main" />
+        </div>
+        <div class="btn-row">
+          <button class="btn-ghost" id="setupStep2Back">Back</button>
+          <button class="btn-primary" id="setupStep2Next">Next</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Done -->
+      <div class="setup-step" id="setupStep3">
+        <div class="step-number">3 / 3</div>
+        <div class="setup-done-icon">✓</div>
+        <h3>You're All Set!</h3>
+        <p>Your tracker is configured. The GitHub Actions workflow will start processing your emails automatically once you set up the required GitHub Secrets (see README).</p>
+        <div class="info-box">
+          <strong>Next Steps:</strong>
+          <ol>
+            <li>Add Gmail API credentials as GitHub Secrets</li>
+            <li>Add your Anthropic API key as a GitHub Secret</li>
+            <li>Enable GitHub Pages on the <code>main</code> branch</li>
+          </ol>
+        </div>
+        <button class="btn-primary" id="setupDone">Open Dashboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ MAIN APP ═══ -->
+<div id="app" class="app" style="display:none">
+
+  <!-- Top Navigation Bar -->
+  <nav class="topnav">
+    <div class="topnav-left">
+      <div class="logo-icon small">ST</div>
+      <span class="app-title">Daily Tracker</span>
+    </div>
+    <div class="topnav-right">
+      <div class="sync-indicator" id="syncIndicator" title="Last sync time">
+        <span class="sync-dot"></span>
+        <span id="syncTime">Syncing…</span>
+      </div>
+      <button class="icon-btn" id="refreshBtn" title="Refresh now">⟳</button>
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙</button>
+      <button class="icon-btn" id="lockBtn" title="Lock">⊠</button>
+    </div>
+  </nav>
+
+  <!-- Stats Bar -->
+  <section class="stats-bar">
+    <div class="stat-card total">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label">Total</div>
+    </div>
+    <div class="stat-card pending">
+      <div class="stat-value" id="statPending">0</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat-card completed-stat">
+      <div class="stat-value" id="statCompleted">0</div>
+      <div class="stat-label">Done</div>
+    </div>
+    <div class="stat-card urgent">
+      <div class="stat-value" id="statUrgent">0</div>
+      <div class="stat-label">Urgent</div>
+    </div>
+    <div class="stat-card medium">
+      <div class="stat-value" id="statMedium">0</div>
+      <div class="stat-label">Medium</div>
+    </div>
+    <div class="stat-card low">
+      <div class="stat-value" id="statLow">0</div>
+      <div class="stat-label">Low</div>
+    </div>
+  </section>
+
+  <!-- Controls Bar -->
+  <div class="controls-bar">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="searchInput" placeholder="Search tasks, clients, employees…" />
+      <button class="clear-search" id="clearSearch" style="display:none">×</button>
+    </div>
+    <div class="filter-wrap">
+      <select id="filterPriority">
+        <option value="">All priorities</option>
+        <option value="urgent">Urgent</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <select id="filterEmployee">
+        <option value="">All employees</option>
+      </select>
+      <select id="filterStatus">
+        <option value="pending">Pending</option>
+        <option value="completed">Completed</option>
+        <option value="">All</option>
+      </select>
+    </div>
+    <button class="btn-primary btn-sm" id="addTaskBtn">+ Add Task</button>
+  </div>
+
+  <!-- Main Content: Client Sections -->
+  <main class="main-content">
+    <div id="clientList" class="client-list">
+      <!-- Injected by app.js -->
+    </div>
+
+    <!-- Completed Tasks Section (minimized by default) -->
+    <div class="client-section completed-section" id="completedSection">
+      <div class="client-header" id="completedHeader">
+        <div class="client-header-left">
+          <span class="chevron" id="completedChevron">▶</span>
+          <span class="client-name">Completed Tasks</span>
+          <span class="task-count badge-completed" id="completedCount">0</span>
+        </div>
+        <div class="client-header-right"></div>
+      </div>
+      <div class="client-tasks collapsed" id="completedTasks">
+        <!-- Injected by app.js -->
+      </div>
+    </div>
+
+    <div id="emptyState" class="empty-state" style="display:none">
+      <div class="empty-icon">📋</div>
+      <h3>No tasks yet</h3>
+      <p>Tasks will appear here once the email sync runs. You can also add tasks manually.</p>
+      <button class="btn-primary" id="emptyAddBtn">+ Add First Task</button>
+    </div>
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════ TASK DETAIL MODAL ═══ -->
+<div id="taskModal" class="modal-overlay" style="display:none">
+  <div class="modal task-modal">
+    <div class="modal-topbar">
+      <div class="modal-priority-badge" id="modalPriorityBadge">URGENT</div>
+      <button class="modal-close" id="taskModalClose">×</button>
+    </div>
+
+    <div class="modal-body">
+      <h2 class="modal-task-title" id="modalTitle">Task Title</h2>
+
+      <div class="modal-meta-row">
+        <div class="meta-item">
+          <span class="meta-label">Client</span>
+          <span class="meta-value" id="modalClient">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Priority</span>
+          <select class="inline-select priority-select" id="modalPrioritySelect">
+            <option value="urgent">🔴 Urgent</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Assigned to</span>
+          <select class="inline-select" id="modalAssigneeSelect">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal-meta-row">
+        <div class="meta-item">
+          <span class="meta-label">Created</span>
+          <span class="meta-value" id="modalCreated">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Updated</span>
+          <span class="meta-value" id="modalUpdated">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Status</span>
+          <span class="meta-value status-badge" id="modalStatus">Pending</span>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <h4>Summary</h4>
+        <p id="modalSummary" class="modal-text">—</p>
+      </div>
+
+      <div class="modal-section">
+        <h4>Actionable Items</h4>
+        <ul id="modalActionables" class="actionable-list"></ul>
+      </div>
+
+      <div class="modal-section">
+        <h4>Next Steps — Responsible</h4>
+        <p id="modalNextSteps" class="modal-text highlight-text">—</p>
+      </div>
+
+      <div class="modal-section collapsible">
+        <div class="section-toggle" id="threadToggle">
+          <h4>Email Thread</h4>
+          <span class="toggle-chevron">▶</span>
+        </div>
+        <div class="thread-list collapsed" id="modalThread"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-ghost btn-sm" id="taskDeleteBtn">Delete</button>
+      <div class="modal-footer-right">
+        <button class="btn-secondary btn-sm" id="taskSaveChanges">Save Changes</button>
+        <button class="btn-complete btn-sm" id="taskToggleComplete">Mark Complete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ ADD / EDIT MODAL ═══ -->
+<div id="addTaskModal" class="modal-overlay" style="display:none">
+  <div class="modal form-modal">
+    <div class="modal-topbar">
+      <h3 id="addTaskModalTitle">Add New Task</h3>
+      <button class="modal-close" id="addTaskModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Task Title *</label>
+        <input type="text" id="formTitle" placeholder="Describe the task…" />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Client Name *</label>
+          <input type="text" id="formClient" placeholder="Client name" list="clientSuggestions" />
+          <datalist id="clientSuggestions"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="formPriority">
+            <option value="urgent">Urgent</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Description / Summary</label>
+        <textarea id="formDescription" rows="3" placeholder="Task details, context…"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Actionable Items (one per line)</label>
+        <textarea id="formActionables" rows="3" placeholder="• Follow up on proposal&#10;• Schedule call&#10;• Send invoice"></textarea>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Assigned To</label>
+          <input type="text" id="formAssignee" placeholder="Employee name" list="employeeSuggestions" />
+          <datalist id="employeeSuggestions"></datalist>
+        </div>
+        <div class="form-group">
+          <label>Next Steps Responsible</label>
+          <input type="text" id="formNextSteps" placeholder="Person / team" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost btn-sm" id="addTaskCancel">Cancel</button>
+      <button class="btn-primary btn-sm" id="addTaskSubmit">Save Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ SETTINGS MODAL ═══ -->
+<div id="settingsModal" class="modal-overlay" style="display:none">
+  <div class="modal settings-modal">
+    <div class="modal-topbar">
+      <h3>Settings</h3>
+      <button class="modal-close" id="settingsModalClose">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-section">
+        <h4>GitHub Configuration</h4>
+        <div class="form-group">
+          <label>Repository Owner</label>
+          <input type="text" id="settOwner" />
+        </div>
+        <div class="form-group">
+          <label>Repository Name</label>
+          <input type="text" id="settRepo" />
+        </div>
+        <div class="form-group">
+          <label>Branch</label>
+          <input type="text" id="settBranch" />
+        </div>
+        <div class="form-group">
+          <label>Personal Access Token</label>
+          <input type="password" id="settToken" placeholder="ghp_xxxxxxxxxxxx" />
+          <small>Stored in your browser only. Never transmitted except to GitHub API.</small>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h4>Employees</h4>
+        <div id="employeeList" class="employee-list"></div>
+        <div class="form-row">
+          <input type="text" id="newEmployeeName" placeholder="Add employee name…" />
+          <button class="btn-primary btn-sm" id="addEmployeeBtn">Add</button>
+        </div>
+      </div>
+
+      <div class="settings-section danger-zone">
+        <h4>Security</h4>
+        <button class="btn-danger btn-sm" id="changePatternBtn">Change Pattern</button>
+        <button class="btn-danger btn-sm" id="resetAppBtn">Reset All Data</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-ghost btn-sm" id="settingsCancel">Cancel</button>
+      <button class="btn-primary btn-sm" id="settingsSave">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════════════════════════════════════════ CONFIRM DIALOG ═══ -->
+<div id="confirmDialog" class="modal-overlay" style="display:none">
+  <div class="modal confirm-modal">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMessage">This action cannot be undone.</p>
+    <div class="modal-footer">
+      <button class="btn-ghost btn-sm" id="confirmCancel">Cancel</button>
+      <button class="btn-danger btn-sm" id="confirmOk">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast" class="toast" style="display:none"></div>
+
+<!-- Scripts -->
+<script src="js/auth.js"></script>
+<script src="js/db.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
