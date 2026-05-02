@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Sabhya's Daily Tracker</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     PATTERN LOCK SCREEN
+══════════════════════════════════════════════════════ -->
+<div id="pattern-screen" class="screen active">
+  <div class="pattern-bg-blur"></div>
+  <div class="pattern-card">
+    <div class="pattern-logo">
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="12" fill="#6366f1"/>
+        <path d="M10 20h20M20 10v20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="20" cy="20" r="4" fill="white"/>
+      </svg>
+      <span>Daily Tracker</span>
+    </div>
+    <p id="pattern-subtitle" class="pattern-subtitle">Draw your pattern to unlock</p>
+    <div id="pattern-lock-container" class="pattern-lock-container"></div>
+    <p id="pattern-status" class="pattern-status"></p>
+    <button id="pattern-reset-btn" class="btn-ghost" style="display:none">Clear</button>
+    <div class="pattern-hint" id="pattern-hint"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SETUP WIZARD (first-time only)
+══════════════════════════════════════════════════════ -->
+<div id="setup-screen" class="screen">
+  <div class="setup-card">
+    <!-- Step indicators -->
+    <div class="setup-steps">
+      <div class="step-dot active" data-step="1"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="3"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="4"></div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="5"></div>
+    </div>
+
+    <!-- Step 1: Welcome -->
+    <div class="setup-step" id="step-1">
+      <div class="setup-icon">👋</div>
+      <h2>Welcome to Sabhya's Daily Tracker</h2>
+      <p>This smart tracker reads your Gmail, extracts tasks using AI, and keeps your work organised by client — automatically.</p>
+      <ul class="feature-list">
+        <li>✦ Auto-reads emails every 10 minutes</li>
+        <li>✦ AI-powered task extraction per client</li>
+        <li>✦ Priority tracking & employee assignment</li>
+        <li>✦ All data stored privately in your browser</li>
+      </ul>
+      <button class="btn-primary" onclick="App.setupNext()">Get Started →</button>
+    </div>
+
+    <!-- Step 2: Set Pattern -->
+    <div class="setup-step hidden" id="step-2">
+      <h2>Set Your Pattern Lock</h2>
+      <p>Draw a pattern (minimum 4 dots) to secure your dashboard. You'll need this every time you open the app.</p>
+      <div id="setup-pattern-container" class="pattern-lock-container"></div>
+      <p id="setup-pattern-status" class="pattern-status"></p>
+      <p id="setup-pattern-instruction" class="pattern-hint">Draw your pattern</p>
+    </div>
+
+    <!-- Step 3: Google OAuth -->
+    <div class="setup-step hidden" id="step-3">
+      <div class="setup-icon">📧</div>
+      <h2>Connect Your Gmail</h2>
+      <p>Enter your Google Cloud OAuth Client ID so the tracker can read your emails. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" class="link">Get it from Google Cloud Console →</a></p>
+      <div class="form-group">
+        <label>Google OAuth Client ID</label>
+        <input type="text" id="google-client-id" class="form-input" placeholder="123456789-abc.apps.googleusercontent.com" />
+      </div>
+      <p class="hint-text">Enable Gmail API in your Google Cloud project. Add your GitHub Pages URL as an authorized JavaScript origin and redirect URI.</p>
+      <div class="form-group">
+        <label>Claude API Key (Anthropic)</label>
+        <input type="password" id="claude-api-key" class="form-input" placeholder="sk-ant-..." />
+        <p class="hint-text">Used to analyse email threads and extract tasks. <a href="https://console.anthropic.com/" target="_blank" class="link">Get it here →</a></p>
+      </div>
+      <button class="btn-primary" onclick="App.saveApiKeys()">Continue →</button>
+    </div>
+
+    <!-- Step 4: Authorize Gmail -->
+    <div class="setup-step hidden" id="step-4">
+      <div class="setup-icon">🔐</div>
+      <h2>Authorize Gmail Access</h2>
+      <p>Click below to grant read-only access to your Gmail. The tracker will never send emails on your behalf.</p>
+      <button class="btn-primary" id="authorize-gmail-btn" onclick="App.authorizeGmail()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:8px"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Connect Google Account
+      </button>
+      <p id="gmail-auth-status" class="pattern-status"></p>
+    </div>
+
+    <!-- Step 5: Add Employees -->
+    <div class="setup-step hidden" id="step-5">
+      <div class="setup-icon">👥</div>
+      <h2>Add Your Team</h2>
+      <p>Add employee names for task assignment. You can always add more later in Settings.</p>
+      <div class="employee-input-row">
+        <input type="text" id="employee-input" class="form-input" placeholder="Employee name" />
+        <button class="btn-secondary" onclick="App.addEmployee()">Add</button>
+      </div>
+      <div id="employee-list" class="employee-list"></div>
+      <button class="btn-primary" style="margin-top:24px" onclick="App.finishSetup()">Launch Dashboard →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     MAIN APP DASHBOARD
+══════════════════════════════════════════════════════ -->
+<div id="app-screen" class="screen">
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="10" fill="#6366f1"/>
+        <path d="M10 20h20M20 10v20" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="20" cy="20" r="4" fill="white"/>
+      </svg>
+      <span class="app-title">Daily Tracker</span>
+    </div>
+    <div class="header-center">
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search-input" class="search-input" placeholder="Search tasks, clients, employees…" oninput="UI.handleSearch(this.value)" />
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="sync-btn" title="Sync emails now" onclick="App.syncNow()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </button>
+      <button class="icon-btn" title="Filter" onclick="UI.toggleFilterPanel()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      </button>
+      <button class="icon-btn" title="Settings" onclick="UI.showSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filter Panel -->
+  <div id="filter-panel" class="filter-panel hidden">
+    <div class="filter-row">
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="filter-status" class="form-select" onchange="UI.applyFilters()">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Priority</label>
+        <select id="filter-priority" class="form-select" onchange="UI.applyFilters()">
+          <option value="">All</option>
+          <option value="urgent">Urgent</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Assigned To</label>
+        <select id="filter-employee" class="form-select" onchange="UI.applyFilters()">
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Client</label>
+        <select id="filter-client" class="form-select" onchange="UI.applyFilters()">
+          <option value="">All</option>
+        </select>
+      </div>
+      <button class="btn-ghost" onclick="UI.clearFilters()">Clear Filters</button>
+    </div>
+  </div>
+
+  <!-- Sync status bar -->
+  <div id="sync-bar" class="sync-bar hidden">
+    <div class="sync-spinner"></div>
+    <span id="sync-bar-text">Syncing emails…</span>
+  </div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar" id="stats-bar">
+    <div class="stat-card" data-filter="">
+      <span class="stat-number" id="stat-total">0</span>
+      <span class="stat-label">Total</span>
+    </div>
+    <div class="stat-card pending-card" data-filter="pending">
+      <span class="stat-number" id="stat-pending">0</span>
+      <span class="stat-label">Pending</span>
+    </div>
+    <div class="stat-card urgent-card" data-filter-priority="urgent">
+      <span class="stat-number" id="stat-urgent">0</span>
+      <span class="stat-label">Urgent</span>
+    </div>
+    <div class="stat-card medium-card" data-filter-priority="medium">
+      <span class="stat-number" id="stat-medium">0</span>
+      <span class="stat-label">Medium</span>
+    </div>
+    <div class="stat-card low-card" data-filter-priority="low">
+      <span class="stat-number" id="stat-low">0</span>
+      <span class="stat-label">Low</span>
+    </div>
+    <div class="stat-card completed-card" data-filter="completed">
+      <span class="stat-number" id="stat-completed">0</span>
+      <span class="stat-label">Completed</span>
+    </div>
+  </div>
+
+  <!-- Last sync info -->
+  <div class="sync-info">
+    <span id="last-sync-text">Never synced</span>
+    <span id="next-sync-text"></span>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main-content" id="main-content">
+    <div id="clients-container"></div>
+
+    <!-- Completed Section -->
+    <div class="completed-section" id="completed-section">
+      <div class="completed-header" onclick="UI.toggleCompleted()">
+        <div class="completed-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          Completed Tasks
+          <span class="completed-count" id="completed-count">0</span>
+        </div>
+        <svg id="completed-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="chevron"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="completed-tasks hidden" id="completed-tasks-container"></div>
+    </div>
+  </main>
+
+  <!-- Floating Add Button -->
+  <button class="fab" onclick="UI.showAddTaskModal()" title="Add Task">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TASK DETAIL MODAL
+══════════════════════════════════════════════════════ -->
+<div id="task-modal" class="modal-overlay hidden" onclick="UI.closeTaskModal(event)">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <span id="modal-priority-badge" class="priority-badge"></span>
+        <span id="modal-client-badge" class="client-badge"></span>
+      </div>
+      <button class="icon-btn" onclick="UI.closeModal('task-modal')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <h2 id="modal-title" class="modal-title"></h2>
+
+    <div class="modal-section">
+      <h3>Summary</h3>
+      <p id="modal-summary" class="modal-text"></p>
+    </div>
+
+    <div class="modal-section">
+      <h3>Actionables</h3>
+      <ul id="modal-actionables" class="actionables-list"></ul>
+    </div>
+
+    <div class="modal-section">
+      <h3>Next Steps</h3>
+      <div id="modal-next-steps" class="next-steps-box"></div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Email Thread</h3>
+      <div id="modal-email-thread" class="email-thread"></div>
+    </div>
+
+    <div class="modal-actions">
+      <div class="modal-action-row">
+        <div class="form-group" style="flex:1">
+          <label>Priority</label>
+          <select id="modal-priority-select" class="form-select" onchange="UI.updateTaskPriority(this.value)">
+            <option value="urgent">Urgent</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Assign To</label>
+          <select id="modal-assign-select" class="form-select" onchange="UI.updateTaskAssignment(this.value)">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-btn-row">
+        <button class="btn-secondary" id="modal-complete-btn" onclick="UI.toggleTaskComplete()"></button>
+        <button class="btn-ghost" onclick="UI.closeModal('task-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     ADD TASK MODAL
+══════════════════════════════════════════════════════ -->
+<div id="add-task-modal" class="modal-overlay hidden" onclick="UI.closeTaskModal(event)">
+  <div class="modal-card modal-card-sm">
+    <div class="modal-header">
+      <h2>Add Task</h2>
+      <button class="icon-btn" onclick="UI.closeModal('add-task-modal')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="form-group">
+      <label>Client *</label>
+      <div style="display:flex;gap:8px">
+        <select id="add-task-client" class="form-select" style="flex:1"></select>
+        <input type="text" id="add-task-new-client" class="form-input" placeholder="Or new client…" style="flex:1" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Task Title *</label>
+      <input type="text" id="add-task-title" class="form-input" placeholder="Task description…" />
+    </div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="add-task-priority" class="form-select">
+        <option value="urgent">Urgent</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Assign To</label>
+      <select id="add-task-assign" class="form-select">
+        <option value="">Unassigned</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="add-task-notes" class="form-input" rows="3" placeholder="Additional notes…"></textarea>
+    </div>
+    <div class="modal-btn-row">
+      <button class="btn-primary" onclick="UI.saveNewTask()">Save Task</button>
+      <button class="btn-ghost" onclick="UI.closeModal('add-task-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SETTINGS MODAL
+══════════════════════════════════════════════════════ -->
+<div id="settings-modal" class="modal-overlay hidden" onclick="UI.closeTaskModal(event)">
+  <div class="modal-card modal-card-sm">
+    <div class="modal-header">
+      <h2>Settings</h2>
+      <button class="icon-btn" onclick="UI.closeModal('settings-modal')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="settings-section">
+      <h3>API Configuration</h3>
+      <div class="form-group">
+        <label>Google OAuth Client ID</label>
+        <input type="text" id="settings-client-id" class="form-input" />
+      </div>
+      <div class="form-group">
+        <label>Claude API Key</label>
+        <input type="password" id="settings-claude-key" class="form-input" />
+      </div>
+      <button class="btn-secondary" onclick="App.saveSettingsKeys()">Update Keys</button>
+    </div>
+    <div class="settings-section">
+      <h3>Team Members</h3>
+      <div class="employee-input-row">
+        <input type="text" id="settings-employee-input" class="form-input" placeholder="Employee name" />
+        <button class="btn-secondary" onclick="App.addEmployeeFromSettings()">Add</button>
+      </div>
+      <div id="settings-employee-list" class="employee-list"></div>
+    </div>
+    <div class="settings-section">
+      <h3>Pattern Lock</h3>
+      <button class="btn-secondary" onclick="App.resetPattern()">Change Pattern</button>
+    </div>
+    <div class="settings-section">
+      <h3>Gmail</h3>
+      <button class="btn-secondary" onclick="App.reauthorizeGmail()">Re-authorize Gmail</button>
+    </div>
+    <div class="settings-section danger-zone">
+      <button class="btn-ghost" onclick="App.lockApp()">🔒 Lock App</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     TOAST NOTIFICATIONS
+══════════════════════════════════════════════════════ -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- Scripts -->
+<script src="js/database.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/gmail.js"></script>
+<script src="js/processor.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
